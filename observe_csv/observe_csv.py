@@ -24,7 +24,9 @@ from pathlib import Path
 def replace_tilde_with_home_directory(path: Union[str, Path]) -> Path:
     """
     Resolves the home directory if encountered in a path
+
     :param path:
+
     :return: absolute path with the home directory resolved
     """
     path = str(path)
@@ -35,6 +37,13 @@ def replace_tilde_with_home_directory(path: Union[str, Path]) -> Path:
 
 
 def parse_dates_from_filename(file: Path) -> Tuple[datetime, datetime]:
+    """
+    Extracts the start and end time from an existing file.
+
+    :param file:
+
+    :return: tuple of start and end time
+    """
     split_names = file.stem.split("__")
     if len(split_names) < 4:
         raise ValueError(f"Cannot extract datetimes from file name: {file.name}")
@@ -45,7 +54,16 @@ def parse_dates_from_filename(file: Path) -> Tuple[datetime, datetime]:
     return start_time, end_time
 
 
-def ask_for_necessary_creation_of_directory(dir: Path, auto_create: bool = False):
+def ask_for_necessary_creation_of_directory(dir: Path, auto_create: bool = False) -> None:
+    """
+    Simple helper to ask for the creation of a directory, unless auto_create is set to true, in which case
+    the directory  is just created.
+
+    :param dir: the directory to create
+    :param auto_create: whether to not ask the user to confirm the creation of the directory
+
+    :return: None
+    """
     if not dir.exists():
         if auto_create or click.confirm(f"The path {dir.resolve()} does not exist, shall we create it?"):
             dir.mkdir(parents=True)
@@ -54,10 +72,24 @@ def ask_for_necessary_creation_of_directory(dir: Path, auto_create: bool = False
 
 
 def get_iso_format(time: datetime) -> str:
+    """
+    Returns a given datetime in iso format as string
+
+    :param time:
+
+    :return: .
+    """
     return time.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
 def get_iso_file_format(time: datetime) -> str:
+    """
+    Returns a given datetime in iso format where dashes and colons are replaced by underscores.
+
+    :param time:
+
+    :return:
+    """
     return time.strftime('%Y_%m_%dT%H_%M_%SZ')
 
 
@@ -66,11 +98,13 @@ def get_output_file_simple(output_dir: Path, file_prefix: str, start_time: datet
                            file_suffix: str) -> Path:
     """
     Returns a canonical path based on the parameters
+
     :param output_dir: path to create the file in
     :param file_prefix: the prefix of the file
     :param start_time: the start time which will be formatted in ISO format
     :param end_time: the end time which will be formatted in ISO format
     :param file_suffix: the suffix of the file to create
+
     :return:
     """
     return Path(output_dir,
@@ -84,10 +118,12 @@ def get_output_file_globbing_template(output_dir: Path, file_prefix: str, file_s
     """
     Returns a canonical path with the given parameters where the start and end times are replaced with a globbing
     expression (?).
+
     :param output_dir: the path for the globbing expression
     :param file_prefix: the prefix of the file
     :param file_suffix: the suffix of the file to create
-    :return:
+
+    :return: path with globbing filename
     """
     pattern = get_iso_file_format(datetime.fromtimestamp(0))
     pattern = re.sub('\d', "?", pattern)
@@ -101,7 +137,9 @@ def get_output_file_globbing_template(output_dir: Path, file_prefix: str, file_s
 def floor_timedelta_to_seconds(td: timedelta) -> timedelta:
     """
     Removes any sub-second time from the timedelta
+
     :param td: input timedelta
+
     :return: the timedelta with any sub-second time removed
     """
     return timedelta(seconds=int(td.total_seconds()))
@@ -110,6 +148,7 @@ def floor_timedelta_to_seconds(td: timedelta) -> timedelta:
 def get_first_line_and_line_count(file: Path) -> Tuple[str, int]:
     """
     :param file: a file to read
+
     :return: the first line of the file and the number of remaining lines
     """
     with open(file) as f:
@@ -121,6 +160,7 @@ def get_first_line_and_line_count(file: Path) -> Tuple[str, int]:
 def remove_files(file_or_files: Union[Path, Iterable[Path]]) -> None:
     """
     :param file_or_files: either a single path pointing to a file or a collection of paths
+
     :return: None
     """
     if isinstance(file_or_files, Path):
@@ -189,7 +229,8 @@ class ExportConfig:
     - columns_to_keep: specifies which columns to export (optional); especially useful for worksheets.
     - start_time: the start time of data to be queried from observe.
     - end_time: the end time of data to be queried from observe.
-    - url: the observe url endpoint to query the data from.
+    - url: the observe url to query the data from.
+    - user: the observe user for querying the data.
     - token: the observe access token to use for exporting the data.
     """
     datasource: Union[DataSourceDataset, DataSourceWorksheet]
@@ -219,8 +260,11 @@ class ExportConfig:
 def get_curl_dataset_payload(dataset_id: int, pipeline_steps: List[str]) -> str:
     """
     returns a "curl-passable" payload for requesting data from a dataset under the given OPAL pipeline_steps
+
     :param dataset_id: the id of the dataset to query
-    :param pipeline_steps: the list of OPAL commands to perform to shape / filter the dataset's data
+    :param pipeline_steps: the list of OPAL commands to perform to shape / filter the dataset's data. Commands are to be
+        passed as individual strings in this list.
+
     :return: a payload that can be passed to curl
     """
     payload = {'query': {'stages': [{'stageID': 'first', 'input': [{'inputName': 'in', 'datasetId': f'{dataset_id}'}],
@@ -240,14 +284,14 @@ def crawl(output_dir: Path,
           end_time: datetime,
           initial_interval_in_seconds: Optional[int],
           get_crawling_command: Callable[[datetime, datetime, Path], str],
-          few_lines_warning: bool = True,
+          few_lines_warning: bool = False,
           yes: bool = False) -> List[Path]:
     """
     This function perform a series of crawl commands (defined by the get_crawling_command callback) to crawl
-    either a dataset or worksheet from Observe. Multiple crawl commands are necessitated as Observe's CSV export
-    only allows to obtain 100k rows at the moment. For larger datasets/worksheets, the requested time period
-    is split into smaller sub-intervals which are adaptively queries.
-    The downloaded csv files are written to disk and returned as a list of paths.
+    either a dataset or worksheet from Observe. Multiple crawl commands may be executed as Observe's CSV export
+    only allows to obtain 100k rows at a time. For larger datasets/worksheets, the requested time period
+    is split into smaller sub-intervals which are adaptively queried.
+    The downloaded csv files are written to disk and returned as a list of paths to be aggregated by another function.
 
     :param output_dir: the directory to create the downloaded csv files in
     :param file_prefix: the prefix of the files to create
@@ -257,6 +301,7 @@ def crawl(output_dir: Path,
     :param initial_interval_in_seconds: if given, defines the initial query window
     :param get_crawling_command: function which returns the actual crawling command
     :param few_lines_warning: whether to warn about few returned rows or not
+
     :return: the list of paths that were downloaded from Observe
     """
     files_downloaded = []
@@ -365,10 +410,7 @@ def post_process_csv(output_dir: Path,
     :param file_prefix: the prefix of the file to create
     :param input_files: the list of all input files to be read (and merged)
     :param ec: the export configuration that the post-processing pertains to, important for the output filename
-    :param start_time: the start time that the data shall be filtered to / also used for filename creation
-    :param end_time: like the start time
-    :param remove_input_files: whether to remove the passed list of input files or not, by default: False
-    :param time_column: if given, all data is filtered to lie within the range of start_time to end_time
+
     :return: the part of the (main) created file
     """
     output_df = None
@@ -405,9 +447,11 @@ def post_process_csv(output_dir: Path,
 def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Path:
     """
     Processes a single DATASET export configuration and executes all actions specified by it (downloading, processing).
+
     :param output_dir: the directory the output files shall be stored in
     :param ec: the export configuration to handle
     :param yes: auto-confirm all otherwise asked questions
+
     :return: the path of the csv file created
     """
 
@@ -464,7 +508,8 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
                                  ec.end_time,
                                  None,
                                  get_crawling_command_for_payload(payload),
-                                 few_lines_warning=False
+                                 few_lines_warning=False,
+                                 yes=yes
                                  )
         if len(files_downloaded) != 1:
             raise ValueError(
@@ -487,9 +532,11 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
 def process_worksheet_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Path:
     """
     Processes a single WORKSHEET export configuration for downloading it.
+
     :param output_dir: the directory the output files shall be stored in
     :param ec: the export configuration to handle
     :param yes: auto-confirm all otherwise asked questions
+
     :return: the path of the csv file created
     """
 
@@ -498,7 +545,7 @@ def process_worksheet_config(output_dir: Path, ec: ExportConfig, yes: bool) -> P
     ds: DataSourceWorksheet = ec.datasource
 
     # we will perform a query request
-    curl_str = f'curl -H "Authorization: Bearer 102 {ec.token}" -H "Accept: text/csv" -H "content-type: application/x-ndjson"'
+    curl_str = f'curl -H "Authorization: Bearer {ec.user} {ec.token}" -H "Accept: text/csv" -H "content-type: application/x-ndjson"'
     url = f"'https://{ec.url}/v1/meta/export/worksheet/{ds.worksheet}'"
 
     def get_worksheet_payload(start_time: datetime, end_time: datetime) -> str:
@@ -535,26 +582,33 @@ def process_worksheet_config(output_dir: Path, ec: ExportConfig, yes: bool) -> P
 
 def process_export_config(output_dir: Path, ec: ExportConfig, yes: bool) -> None:
     """
-    Handle a export config according to its datasource
+    Handle an export config according to its datasource.
+
     :param output_dir: the directory to create the files in
     :param ec: the actual export configuration
     :param yes: auto-confirm all otherwise asked questions
+
     :return: None
     """
     if not isinstance(ec, ExportConfig):
         raise ValueError("Was expecting an ExportConfigs type (plural!)")
+    result_file = None
     if isinstance(ec.datasource, DataSourceDataset):
-        process_dataset_config(output_dir, ec, yes)
+        result_file = process_dataset_config(output_dir, ec, yes)
     elif isinstance(ec.datasource, DataSourceWorksheet):
-        process_worksheet_config(output_dir, ec, yes)
+        result_file = process_worksheet_config(output_dir, ec, yes)
     else:
         raise ValueError(f"Unknown datasource type {type(ec.datasource)} of export configuration {ec} ")
+    if result_file is not None:
+        print(f"Successfully exported the data to {str(result_file.resolve())}")
 
 
 def load_export_config_from_file(file: Path) -> ExportConfig:
     """
     Given a path reads the JSON and resolves Union types that otherwise would need "hidden" identifier fields.
+
     :param file:
+
     :return: the ExportConfig pertaining to the path passed as argument
     """
     with open(file) as f:
@@ -642,20 +696,24 @@ def cli():
             "token": "access token for user xzy on xzy.observe.com"
         }
 
+
     In the following, we shortly discuss the main ingredients:
 
     - ``datasource`` specifies the destination the data should be loaded from. This may either be a dataset or a worksheet.
-      When a dataset is selected, some arbitrary OPAL may be given. As Observe enforces a 100k limit on returned rows
-      the user may specify a temporal granularity according to which data may be retrieved via ``initial_interval_to_query_seconds``.
+      When a dataset is selected, some arbitrary OPAL may be given via ``opal_query``. For worksheet exports the stage
+      must be specified via ``stage``.
+      As Observe enforces a 100k limit on returned rows for single queries the user may specify a temporal granularity
+      via `initial_interval_to_query_seconds``  when it is likely that more than 100k will be returned.
 
       .. warning::
 
         The value of ``initial_interval_to_query_seconds`` will dictate the query time window. Do not use this setting,
-        i.e., leave it ``null`` when you want to query aggregate data for example originating from a worksheet.
+        i.e., leave it ``null``, when you want to query aggregate data for example originating from a worksheet.
 
       For dataset exports, you may specify that the completeness of the data shall be verified. Here, an additional
       statsby query is executed to count the number of rows expected. If not all data was returned a warning is output
       on stderr.
+      For worksheet queries this additional check is not available.
 
     - ``filename_prefix`` specifies the prefix of the output file. Additional parts of the filename are the dataset source,
        and the start and end time.
@@ -671,13 +729,25 @@ def cli():
         Instead of filtering the data after having downloaded it, for datasets it makes sense to include a ``pickl_col``
         directive in the OPAL such that only the data really needed is downloaded.
 
-    - ``start_time`` defines the start of the query window and must be given as UTC time.
-    - ``start_time`` defines the end of the query window and must be given as UTC time.
+    - ``start_time`` defines the start of the query window and must be given according to the UTC timezone.
+    - ``start_time`` defines the end of the query window and must be given according to the UTC timezone.
     - ``url`` defines the observe url to query the data from.
     - ``user`` defines the user account to use for the export of the data.
     - ``token`` the access token provisioned for the user to export the data/
 
     .. note::
+
+      The following keys are optional: ``initial_interval_to_query_seconds``, ``comment``, ``string_columns``,
+      ``sort_keys``, ``columns_to_keep``. Within the config these may either be set to  ``null``, e.g.,
+      ``"string_columns": null``, or may not be specified at all.
+
+    .. note::
+
+      One may also omit setting all runtime specific settings, namely, ``start_time``, ``end_time``, ``url``, ``user``,
+      and ``token``. If these are ``null``'ed or omitted the respective values must be provided via options
+      when calling the ``csv-observe export`` command.
+
+    .. warning::
 
         Dates and times are always interpreted as UTC times.
 
@@ -685,8 +755,8 @@ def cli():
     To get the user started with writing configurations example configurations some samples can be glanced at using
     the following commands:
 
-    - ``observe-csv [minimal/full]-example-dataset-config``
-    - ``observe-csv [minimal/full]-example-worksheet-config``
+    - ``observe-csv minimal-example-dataset-config`` or ``observe-csv full-example-dataset-config``
+    - ``observe-csv minimal-example-worksheet-config`` or ``observe-csv full-example-worksheet-config``
 
     """
     pass
@@ -721,12 +791,31 @@ def export(config_file: str,
            token: str,
            yes: bool):
     """
-    Performs an export of data via the given JSON file which contains a series of export configurations which
-    may reference each other. As second mandatory argument a path needs to be specified
-    where the output is stored.
+    Performs an export of data via the given JSON config which specifies the input datasource and a set of additional
+    postprocessing steps. Please see ``observe-csv --help`` for a description of the file format.
 
-    As export configurations are executed in the order specified in the JSON file, export stages referenced by other
-    stages must come after the respective stages.
+    If the configuration does not specify either of the following attributes, then these must be specified via
+    the respective options: ``start_time``, ``end_time``, ``url``, ``user``, ``token``.
+    For the ``start_time`` and ``end_time`` the following formats are available:
+
+    When large quantities of data are to be exported the user should specify the ``initial_interval_to_query_seconds``
+    within the JSON config such that the time range to query starts off with something reasonable.
+
+    .. warning::
+
+      When the dataset or worksheet contains already aggregated data (for example some statistics of error types),
+      then the ``initial_interval_to_query_seconds`` should NOT be set, as otherwise the overview data is
+      downloaded for various time intervals and then afterwards aggregated, which probably was is not the intended
+      use case.
+
+    When exporting chunks of data due to the 100k row limitation all CSVs are written in temporary files which
+    are afterwards aggregated. The export configuration allows to perform some post-processing:
+
+    - enforce columns to be interpreted as strings via the ``string_columns`` list
+    - filter columns via the ``columns_to_keep`` entry
+    - sort the rows by (a list of columns) via the ``sort_keys`` entry
+
+    The exported csv data is always fully quoted to avoid ambiguities when reading it in other applications.
     """
     try:
         output_dir = replace_tilde_with_home_directory(output_dir)
@@ -734,26 +823,26 @@ def export(config_file: str,
         ask_for_necessary_creation_of_directory(output_dir, auto_create=yes)
 
         patched_config = False
-        def patch_notification(name: str, value: str, hide: bool = False):
+        def patch_config_notification(name: str, value: str, hide: bool = False):
             nonlocal patched_config
             print(f"Have read the following {name} from the CLI and will overwrite value in export configuration: {value if not hide else '*'*len(value)}")
             patched_config = True
 
         if start_time is not None:
             ec.start_time = start_time
-            patch_notification("start time", str(start_time))
+            patch_config_notification("start time", str(start_time))
         if end_time is not None:
             ec.end_time = end_time
-            patch_notification("end time", str(end_time))
+            patch_config_notification("end time", str(end_time))
         if token is not None:
             ec.token = token
-            patch_notification("token", str(token), hide=True)
+            patch_config_notification("token", str(token), hide=True)
         if url is not None:
             ec.url = url
-            patch_notification("url", str(url), hide=True)
+            patch_config_notification("url", str(url), hide=True)
         if user is not None:
             ec.user = user
-            patch_notification("user", str(user), hide=True)
+            patch_config_notification("user", str(user), hide=True)
         if patched_config:
             pretty_printed_config = json.dumps(json.loads(ec.to_json()), indent=4)
             if yes:
