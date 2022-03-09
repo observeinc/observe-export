@@ -1,5 +1,5 @@
-# Observe-Csv
-A python tool and library to easily extract data from observe worksheets and datasets.
+# Observe-CSV
+A python tool (and library) to easily export data from Observe worksheets and datasets from the command line, including files larger than the maximum size configurable in the UI (100k rows).
 
 ## Dependencies & Requirements
 
