@@ -1,14 +1,41 @@
 # Observe-Csv
 A python tool and library to easily extract data from observe worksheets and datasets.
 
-# Dependencies & Requirements
+## Dependencies & Requirements
 
-To use ```observe-csv``` you will need at least python3.8. This package has, so far, only been tested on Linux 
-(Ubuntu 20.04) and Mac OS X 11.2. 
+>**_NOTE:_** This package has, so far, only been tested on Linux (Ubuntu 20.04) and Mac OS X 11.2. 
 
-The data is exported via ```curl``` which needs to be set up properly on the machine. 
+#### Observe User Id
+Your Observe User ID can be found by going to ```https://${CUSTOMER_ID}.observeinc.com/settings/members```
 
-# Installation
+#### Observe Access Token
+You will require an Observe Access Token which can be generated via ```curl```, additional details can be found in the [Observe Docs](https://docs.observeinc.com/en/latest/content/common-topics/FAQ.html#how-do-i-create-an-access-token-that-can-do-more-than-just-ingest-data)
+
+```curl
+curl -s \
+  https://${OBSERVE_CUSTOMER}.observeinc.com/v1/login -d \
+  '{"user_email":"you@your-company.com", "user_password":"so secret", \
+  "tokenName":"My token name"}'
+```
+
+#### Observe Stage Identifier
+If exporting a worksheet you will require the stage identifier for the stage of the worksheet that you'd like to export.
+You can retrieve the stage identifier by engaging with Observe support. Otherwise if you'd like the last stage in the worksheet you can simply put ```_last```
+
+#### Observe Dataset Identifier
+If exporting the results of a dataset query you will need the Observe Dataset ID, this can be found in the URL of the Observe Dataset Landing Page, ```https://${CUSTOMER_ID}.observeinc.com/workspace/${WORKSPACE_ID}/dataset/(event|resource)/${DATASET_ID}```
+
+
+| Name | Required | Version | Example |
+|------|----------|---------|---------|
+| <a name="requirement_python"></a> [python](#requirement\_python) | Yes | >= 3.8 | N/A |
+| <a name="requirement_cURL"></a> [cURL](#requirement\_cURL) | Yes | N/A | N/A |
+| <a name="requirement_userId"></a> [user](#requirement\_userId) | Yes | N/A | 12345 |
+| <a name="requirement_accessToken"></a> [token](#requirement\_accessToken) | Yes | N/A | Ga21uay2vAGrzxfZHgJN4gNhuCBC9oKD |
+| <a name="requirement_stage"></a> [stage](#requirement\_stage) | No | N/A | stage-123abc |
+| <a name="requirement_dataset"></a> [dataset](#requirement\_dataset) | No | N/A | 41023123 |
+
+## Installation
 
 Python libraries should generally be installed in individual virtual environments to avoid clashes of dependencies.
 Hence, you should first create a virtual environment, e.g., using ```python3.X -m venv venv``` which creates the
@@ -23,14 +50,12 @@ editable via ``` pip install . -e```
 
 Once installed, you can readily use the exporter using the command ```observe-csv```. Building on top of 
 
-# observe-csv
-
 ## Usage
 
 The following documentation is automatically generated from the source using sphinx.
 You can create a HTML documentation by calling `make html` in the docs directory.
 
-**NOTE**: While this package comes with a command-line interface, you may also use its contents
+> **_NOTE:_** While this package comes with a command-line interface, you may also use its contents
 as library.
 
 ### observe-csv
@@ -108,7 +133,7 @@ must be specified via `stage`.
 As Observe enforces a 100k limit on returned rows for single queries the user may specify a temporal granularity
 via initial_interval_to_query_seconds\`  when it is likely that more than 100k will be returned.
 
-**WARNING**: The value of `initial_interval_to_query_seconds` will dictate the query time window. Do not use this setting,
+> **_WARNING:_** The value of `initial_interval_to_query_seconds` will dictate the query time window. Do not use this setting,
 i.e., leave it `null`, when you want to query aggregate data for example originating from a worksheet.
 
 For dataset exports, you may specify that the completeness of the data shall be verified. Here, an additional
@@ -134,7 +159,7 @@ hence forcing the row to be converted to floats. This field is optional and can 
 
 * `columns_to_keep` can be used to filter down the output columns.
 
-**NOTE**: Instead of filtering the data after having downloaded it, for datasets it makes sense to include a `pickl_col`
+> **_NOTE:_** Instead of filtering the data after having downloaded it, for datasets it makes sense to include a `pickl_col`
 directive in the OPAL such that only the data really needed is downloaded.
 
 
@@ -152,15 +177,15 @@ directive in the OPAL such that only the data really needed is downloaded.
 
 * `token` the access token provisioned for the user to export the data/
 
-**NOTE**: The following keys are optional: `initial_interval_to_query_seconds`, `comment`, `string_columns`,
+> **_NOTE:_** The following keys are optional: `initial_interval_to_query_seconds`, `comment`, `string_columns`,
 `sort_keys`, `columns_to_keep`. Within the config these may either be set to  `null`, e.g.,
 `"string_columns": null`, or may not be specified at all.
 
-**NOTE**: One may also omit setting all runtime specific settings, namely, `start_time`, `end_time`, `url`, `user`,
+> **_NOTE:_** One may also omit setting all runtime specific settings, namely, `start_time`, `end_time`, `url`, `user`,
 and `token`. If these are `null`’ed or omitted the respective values must be provided via options
 when calling the `csv-observe export` command.
 
-**WARNING**: Dates and times are always interpreted as UTC times.
+> **_WARNING:_** Dates and times are always interpreted as UTC times.
 
 To get the user started with writing configurations example configurations some samples can be glanced at using
 the following commands:
@@ -187,7 +212,7 @@ For the `start_time` and `end_time` the following formats are available:
 When large quantities of data are to be exported the user should specify the `initial_interval_to_query_seconds`
 within the JSON config such that the time range to query starts off with something reasonable.
 
-**WARNING**: When the dataset or worksheet contains already aggregated data (for example some statistics of error types),
+> **_WARNING:_** When the dataset or worksheet contains already aggregated data (for example some statistics of error types),
 then the `initial_interval_to_query_seconds` should NOT be set, as otherwise the overview data is
 downloaded for various time intervals and then afterwards aggregated, which probably was is not the intended
 use case.
