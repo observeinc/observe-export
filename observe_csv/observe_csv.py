@@ -3,7 +3,7 @@ import subprocess
 import sys
 import traceback
 import warnings
-from typing import Dict, Union, Set, Tuple, List, Optional, Callable, Iterable
+from typing import Dict, Union, Set, Tuple, List, Optional, Callable, Iterable, Any
 from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
 import dataclasses_json
@@ -330,8 +330,8 @@ def crawl(output_dir: Path,
         files_string = "\n\t".join(map(lambda x: str(x.resolve()), matching_files))
         if yes:
             print("Found existing files seemingly downloaded before and will re-use them: \n\t{files_string}\n\n")
-        elif click.confirm(f"Found existing files seemingly downloaded before:\n\t{files_string}\n\nDo you want to use these "
-                      f"or do you want to download the respective data again?"):
+        elif click.confirm(f"Found existing files seemingly downloaded before:\n\t{files_string}\n\nDo you want to reuse these? "
+                      f"(If you select No these will be downloaded again)"):
             start_time = temp_start_time
             files_downloaded = matching_files
 
@@ -629,6 +629,28 @@ def load_export_config_from_file(file: Path) -> ExportConfig:
     return export_config
 
 
+def check_completeness_of_config(ec: ExportConfig) -> None:
+    """
+    Checks that all essential fields that are optional are provided;
+    raises ValueError if some parameter is missing
+    :param ec: config to be checked
+    :return:
+    """
+    def check_single_field(field: str, value: Any, forbidden_value: Any) -> List[str]:
+        if value is None or value == forbidden_value:
+            return [field]
+        return []
+    missing_fields = []
+    missing_fields.extend(check_single_field("url", ec.url, ""))
+    missing_fields.extend(check_single_field("user", ec.user, ""))
+    missing_fields.extend(check_single_field("token", ec.token, ""))
+    missing_fields.extend(check_single_field("start_time", ec.start_time, uninitialized_datetime))
+    missing_fields.extend(check_single_field("end_time", ec.end_time, uninitialized_datetime))
+    if len(missing_fields) > 0:
+        raise ValueError("The following field(s) must be set either via the config or via the respective command-line "
+                         f"parameter:\n            <{', '.join(missing_fields)}>")
+
+
 @click.group()
 def cli():
     """
@@ -834,7 +856,7 @@ def export(config_file: str,
         if end_time is not None:
             ec.end_time = end_time
             patch_config_notification("end time", str(end_time))
-        if token is not None:
+        if token is not None and token != "":
             ec.token = token
             patch_config_notification("token", str(token), hide=True)
         if url is not None:
@@ -843,6 +865,9 @@ def export(config_file: str,
         if user is not None:
             ec.user = user
             patch_config_notification("user", str(user), hide=True)
+
+        check_completeness_of_config(ec)
+
         if patched_config:
             pretty_printed_config = json.dumps(json.loads(ec.to_json()), indent=4)
             if yes:
