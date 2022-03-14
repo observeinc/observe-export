@@ -1,3 +1,4 @@
+import copy
 import csv
 import subprocess
 import sys
@@ -861,15 +862,17 @@ def export(config_file: str,
             patch_config_notification("token", str(token), hide=True)
         if url is not None:
             ec.url = url
-            patch_config_notification("url", str(url), hide=True)
+            patch_config_notification("url", str(url))
         if user is not None:
             ec.user = user
-            patch_config_notification("user", str(user), hide=True)
+            patch_config_notification("user", str(user))
 
         check_completeness_of_config(ec)
 
         if patched_config:
-            pretty_printed_config = json.dumps(json.loads(ec.to_json()), indent=4)
+            copy_with_masked_token = copy.deepcopy(ec)
+            copy_with_masked_token.token = '*'*len(copy_with_masked_token.token) + "(sensitive content is not displayed)"
+            pretty_printed_config = json.dumps(json.loads(copy_with_masked_token.to_json()), indent=4)
             if yes:
                 print(f"Configuration to be executed is: \n\n{pretty_printed_config}\n\n")
             elif not click.confirm(
