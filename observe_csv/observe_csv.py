@@ -367,6 +367,8 @@ def crawl(output_dir: Path,
         if number_of_lines >= 100000:
             current_interval = floor_timedelta_to_seconds(current_interval / 2)
             print(f"\tsaw more than 100k lines. Going to retry with a halved time interval: {current_interval}")
+            # remove the file just downloaded
+            output_file.unlink()
             continue
 
         if number_of_lines < 10 and few_lines_warning:
@@ -461,7 +463,7 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
     ds: DataSourceDataset = ec.datasource
 
     pipeline_steps = ""
-    if ds.opal_query is not None:
+    if ds.opal_query is not None and ds.opal_query != "":
         pipeline_steps = ds.opal_query.split("\n")
     else:
         pipeline_steps = []
