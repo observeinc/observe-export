@@ -1,5 +1,6 @@
 import copy
 import csv
+import enum
 import subprocess
 import sys
 import traceback
@@ -210,6 +211,20 @@ class DataSourceWorksheet:
     initial_interval_to_query_seconds: Optional[int] = None
     comment: Optional[str] = ""
 
+class Format(enum.Enum):
+    CSV = "CSV"
+    JSON = "JSON"
+    INVALID = "INVALID"
+
+    @staticmethod
+    def from_string(string: str) -> 'Format':
+        if string == "json":
+            return Format.JSON
+        elif string == "csv":
+            return Format.CSV
+        else:
+            return Format.INVALID
+
 
 # dataclass_json cannot handle None's as default for datetime fields, so we use the following to denote an
 # unitializaed datetime
@@ -221,6 +236,10 @@ class ExportConfig:
     """
     Specifies a data source to export. The datasource can either be a dataset (with an OPAL query) or a worksheet.
     The exported data will be written into a file prefixed by the one given in the configuration.
+    Valid output formats are 'csv' and 'json'. You may also specify the format with which the data is crawled.
+    CSV is generally much more compact but is troublesome when dealing with strings containing quotations or
+    commas. JSON is more robust but file are larger, slowing down the downloading process. By default JSON is used.
+
     The other fields have the following meaning:
 
     - string_columns: forces columns included in the list to be interpreted as strings. This is particularly helpful
@@ -236,6 +255,8 @@ class ExportConfig:
     """
     datasource: Union[DataSourceDataset, DataSourceWorksheet]
     filename_prefix: str
+    output_format: str = ""
+    crawling_format: str = "json"
     string_columns: Optional[List[str]] = None
     sort_keys: Optional[List[str]] = None
     columns_to_keep: Optional[List[str]] = None
@@ -256,6 +277,12 @@ class ExportConfig:
     url: Optional[str] = None
     user: Optional[str] = None
     token: Optional[str] = None
+
+    def get_output_format(self) -> Format:
+        return Format.from_string(self.output_format)
+
+    def get_crawling_format(self) -> Format:
+        return Format.from_string(self.crawling_format)
 
 
 def get_curl_dataset_payload(dataset_id: int, pipeline_steps: List[str]) -> str:
@@ -285,6 +312,7 @@ def crawl(output_dir: Path,
           end_time: datetime,
           initial_interval_in_seconds: Optional[int],
           get_crawling_command: Callable[[datetime, datetime, Path], str],
+          crawling_format: Format,
           few_lines_warning: bool = False,
           yes: bool = False) -> List[Path]:
     """
@@ -357,16 +385,28 @@ def crawl(output_dir: Path,
         exec_finish = time.time()
         # check the number of lines of the file
         first_line, number_of_lines = get_first_line_and_line_count(output_file)
-        if first_line.startswith("{"):
-            # we've got a JSON result, probably indiciating an error:
-            print(f"\tfile's {output_file.resolve()} first line seemingly contains JSON: {first_line}")
-            print(f"\twill assume that this is an error and abort")
-            sys.exit(1)
+        if crawling_format == Format.CSV:
+            if first_line.startswith("{") and number_of_lines == 1:
+                # we've got a JSON result, probably indiciating an error:
+                print(f"\tfile's {output_file.resolve()} first line seemingly contains JSON: {first_line}")
+                print(f"\twill assume that this is an error and abort")
+                sys.exit(1)
+        else:
+            if first_line.startswith('{"ok":false,"message"') and number_of_lines == 1:
+                # this generally indicates an error unless the user has constructed a dataset/worksheet exporting
+                # exactly this output. TODO: error handling should be improved in the future here.
+                print(f"\tfile's {output_file.resolve()} first line {first_line} was interpreted as error message.")
+                print(f"\taborting execution")
+                sys.exit(1)
+
         print(f"\tgot {number_of_lines} rows for period of {current_start_time} to {current_end_time} "
               f"(interval {current_interval}) in {exec_finish - exec_start:.2f} seconds")
-        if number_of_lines >= 100000:
+        if (number_of_lines >= 100000 and crawling_format == Format.CSV) or\
+                (number_of_lines >= 99999 and crawling_format == Format.JSON):  #JSON doesn't have the header file
             current_interval = floor_timedelta_to_seconds(current_interval / 2)
             print(f"\tsaw more than 100k lines. Going to retry with a halved time interval: {current_interval}")
+            if current_interval.total_seconds() < 1.0:
+                raise RuntimeError("Too much data. Cannot crawl for durations less than 1s. Aborting.")
             # remove the file just downloaded
             output_file.unlink()
             continue
@@ -426,7 +466,10 @@ def post_process_csv(output_dir: Path,
             dtype.update({
                 column_name: str for column_name in ec.string_columns
             })
-        input_df = pd.read_csv(file, header=0, sep=",", dtype=dtype)
+        if ec.get_crawling_format() == Format.CSV:
+            input_df = pd.read_csv(file, header=0, sep=",", quotechar='"', doublequote=False, escapechar='\\', dtype=dtype)
+        else:
+            input_df = pd.read_json(file, lines=True, dtype=dtype)
         if ec.columns_to_keep is not None:
             input_df = input_df[ec.columns_to_keep]
         read_dfs.append(input_df)
@@ -438,9 +481,12 @@ def post_process_csv(output_dir: Path,
         print(f"\tgoing to sort values in output dataframe according to the columns {ec.sort_keys}")
         output_df.sort_values(ec.sort_keys, inplace=True)
 
-    aggregated_result_file = get_output_file_simple(output_dir, file_prefix, ec.start_time, ec.end_time, ".csv")
+    aggregated_result_file = get_output_file_simple(output_dir, file_prefix, ec.start_time, ec.end_time, "."+ec.output_format)
     print(f"\tgoing to write output file {aggregated_result_file.resolve()}")
-    output_df.to_csv(aggregated_result_file, index=False, quoting=csv.QUOTE_ALL)
+    if ec.get_output_format() == Format.CSV:
+        output_df.to_csv(aggregated_result_file, index=False, quoting=csv.QUOTE_ALL)
+    else:
+        output_df.to_json(aggregated_result_file, orient='records', lines=True)
     if remove_input_files:
         remove_files(input_files)
 
@@ -462,6 +508,8 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
         raise ValueError(f"Was expecting to be passed a dataset config but got {ec.datasource}")
     ds: DataSourceDataset = ec.datasource
 
+    crawling_format = ec.get_crawling_format()
+
     pipeline_steps = ""
     if ds.opal_query is not None and ds.opal_query != "":
         pipeline_steps = ds.opal_query.split("\n")
@@ -471,7 +519,10 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
     # we will perform a query request
     payload = get_curl_dataset_payload(ds.dataset, pipeline_steps)
     curl_str = f'curl -H "Authorization: Bearer {ec.user} {ec.token}"'
-    conf_str = "-H 'Accept: text/csv' -H 'Content-Type: application/json'"
+    if crawling_format == Format.CSV:
+        conf_str = "-H 'Accept: text/csv' -H 'Content-Type: application/json'"
+    else:
+        conf_str = "-H 'Accept: application/x-ndjson' -H 'Content-Type: application/json'"
     url_and_time ='https://' + ec.url + '/v1/meta/export/query?startTime={XYZstartTimeZYX}&endTime={XYZendTimeZYX}'
     url_and_time = f"\'{url_and_time}\'"
 
@@ -488,7 +539,10 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
         return get_crawling_command
 
     file_prefix = f"{ec.filename_prefix}__dataset{ds.dataset}__"
-    file_suffix = "_temp.csv"
+    if crawling_format == Format.CSV:
+        file_suffix = "_temp.csv"
+    else:
+        file_suffix = "_temp.json"
 
     files_downloaded = crawl(output_dir,
                              file_prefix,
@@ -497,6 +551,7 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
                              ec.end_time,
                              ds.initial_interval_to_query_seconds,
                              get_crawling_command_for_payload(payload),
+                             crawling_format,
                              yes=yes
                              )
     main_result_file = post_process_csv(output_dir, file_prefix, files_downloaded, ec, remove_input_files=True)
@@ -511,6 +566,7 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
                                  ec.end_time,
                                  None,
                                  get_crawling_command_for_payload(payload),
+                                 crawling_format,
                                  few_lines_warning=False,
                                  yes=yes
                                  )
@@ -518,16 +574,19 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
             raise ValueError(
                 f"Was expecting to find exactly one csv file with the correctness data but found multiple: {files_downloaded}")
         correctness_file = files_downloaded[0]
-        expected_number_of_lines = pd.read_csv(correctness_file, header=0)["count"][0]
+        if crawling_format == Format.CSV:
+            expected_number_of_lines = pd.read_csv(correctness_file, header=0)["count"][0]
+        else:
+            expected_number_of_lines = pd.read_json(correctness_file, lines=True)["count"][0]
         _, number_of_lines_exported = get_first_line_and_line_count(main_result_file)
         if expected_number_of_lines == number_of_lines_exported:
             print("\tCompleteness check passed!\n\t\t all rows were exported!")
-            remove_files(correctness_file)
         else:
             missing_percent = 1 - float(number_of_lines_exported) / expected_number_of_lines
             warnings.warn(f"\tCompleteness check failed \n\t\t.. only {number_of_lines_exported} rows were exported "
                           f"but should have exported {expected_number_of_lines}!"
                           f"\n\t\t.. we are missing {100 * missing_percent:.3f}% for {main_result_file.resolve()}!")
+        remove_files(correctness_file)
 
     return main_result_file
 
@@ -547,8 +606,13 @@ def process_worksheet_config(output_dir: Path, ec: ExportConfig, yes: bool) -> P
         raise ValueError(f"Was expecting to be passed a worksheet config but got {ec.datasource}")
     ds: DataSourceWorksheet = ec.datasource
 
+    crawling_format = ec.get_crawling_format()
+
     # we will perform a query request
-    curl_str = f'curl -H "Authorization: Bearer {ec.user} {ec.token}" -H "Accept: text/csv" -H "content-type: application/x-ndjson"'
+    if crawling_format == Format.CSV:
+        curl_str = f'curl -H "Authorization: Bearer {ec.user} {ec.token}" -H "Accept: text/csv" -H "content-type: application/x-ndjson"'
+    else:
+        curl_str = f'curl -H "Authorization: Bearer {ec.user} {ec.token}" -H "Accept: application/x-ndjson" -H "content-type: application/x-ndjson"'
     url = f"'https://{ec.url}/v1/meta/export/worksheet/{ds.worksheet}'"
 
     def get_worksheet_payload(start_time: datetime, end_time: datetime) -> str:
@@ -567,7 +631,10 @@ def process_worksheet_config(output_dir: Path, ec: ExportConfig, yes: bool) -> P
         return curl_command
 
     file_prefix = f"{ec.filename_prefix}__worksheet{ds.worksheet}__"
-    file_suffix = "_temp.csv"
+    if crawling_format == Format.CSV:
+        file_suffix = "_temp.csv"
+    else:
+        file_suffix = "_temp.json"
 
     files_downloaded = crawl(output_dir,
                              file_prefix,
@@ -576,6 +643,7 @@ def process_worksheet_config(output_dir: Path, ec: ExportConfig, yes: bool) -> P
                              ec.end_time,
                              ds.initial_interval_to_query_seconds,
                              get_crawling_command,
+                             crawling_format,
                              yes=yes
                              )
     main_result_file = post_process_csv(output_dir, file_prefix, files_downloaded, ec, remove_input_files=True)
@@ -647,6 +715,8 @@ def check_completeness_of_config(ec: ExportConfig) -> None:
     missing_fields.extend(check_single_field("url", ec.url, ""))
     missing_fields.extend(check_single_field("user", ec.user, ""))
     missing_fields.extend(check_single_field("token", ec.token, ""))
+    missing_fields.extend(check_single_field("output_format", ec.output_format, ""))
+    missing_fields.extend(check_single_field("crawling_format", ec.crawling_format, ""))
     missing_fields.extend(check_single_field("start_time", ec.start_time, uninitialized_datetime))
     missing_fields.extend(check_single_field("end_time", ec.end_time, uninitialized_datetime))
     if len(missing_fields) > 0:
@@ -658,7 +728,7 @@ def check_completeness_of_config(ec: ExportConfig) -> None:
 def cli():
     """
     This module allows to export data from Observe worksheets and datasets to CSV files.
-    Data can be exported via the command ``observe-csv export <config> <output_directory>``.
+    Data can be exported via the command ``observe-export export <config> <output_directory>``.
 
     An example dataset export configuration may look like this:
 
@@ -673,6 +743,8 @@ def cli():
                 "comment": "Any comment you put here will not be processed."
             },
             "filename_prefix": "dataset_filename",
+            "output_format": "json",
+            "crawling_format": :json",
             "string_columns": [
                 "col1"
             ],
@@ -703,6 +775,8 @@ def cli():
                 "comment": "Any comment you put here will not be processed."
             },
             "filename_prefix": "worksheet_filename",
+            "output_format": "json",
+            "crawling_format": :json",
             "string_columns": [
                 "col1"
             ],
@@ -742,6 +816,12 @@ def cli():
 
     - ``filename_prefix`` specifies the prefix of the output file. Additional parts of the filename are the dataset source,
        and the start and end time.
+    - ``output_format`` specifies whether the exported data shall be written as CSV or JSON. Acceptable values are
+      "csv" or "json".
+    - ``crawling_format`` specifies whether the data shall be exported as CSV or JSON. CSV exports run generally faster
+      due to the more compact data representation but may lead to problems when handling strings including commas or
+      quotes. JSON is more robust but will take longer to download. Acceptable values for this field are again
+      "csv" or "json".
     - ``string_columns`` specifies that the given columns are to be loaded explicitly as strings into when processing
       the data. This is at times needed, as exported NULL values may otherwise be converted to NaN values by pandas
       hence forcing the row to be converted to floats. This field is optional and can be omitted or set to ``null``.
@@ -768,9 +848,9 @@ def cli():
 
     .. note::
 
-      One may also omit setting all runtime specific settings, namely, ``start_time``, ``end_time``, ``url``, ``user``,
-      and ``token``. If these are ``null``'ed or omitted the respective values must be provided via options
-      when calling the ``csv-observe export`` command.
+      One may also omit setting all runtime specific settings, namely, ``output_format``, ``crawling_format``,
+      ``start_time``, ``end_time``, ``url``, ``user``, and ``token``. If these are ``null``'ed or omitted the
+      respective values must be provided via options when calling the ``observe-export export`` command.
 
     .. warning::
 
@@ -780,8 +860,8 @@ def cli():
     To get the user started with writing configurations example configurations some samples can be glanced at using
     the following commands:
 
-    - ``observe-csv minimal-example-dataset-config`` or ``observe-csv full-example-dataset-config``
-    - ``observe-csv minimal-example-worksheet-config`` or ``observe-csv full-example-worksheet-config``
+    - ``observe-export minimal-example-dataset-config`` or ``observe-export full-example-dataset-config``
+    - ``observe-export minimal-example-worksheet-config`` or ``observe-export full-example-worksheet-config``
 
     """
     pass
@@ -789,6 +869,16 @@ def cli():
 @cli.command()
 @click.argument("config-file", type=click.STRING)
 @click.argument("output_dir", type=click.STRING)
+@click.option('--output-format', type=click.STRING, default=None, show_default=True,
+              help="If given overwrites the output_format field contained in the JSON config. "
+                   "Must be given if it is not set in the config file. Must either be \"json\' or \"csv\'.")
+@click.option('--crawling-format', type=click.STRING, default=None, show_default=True,
+              help="If given overwrites the crawling_format field contained in the JSON config. "
+                   "If not given and not specified in the JSON config \"json\" is used. "
+                   "Must either be \"json\' or \"csv\'.")
+@click.option('--start-time', type=click.DateTime(), default=None, show_default=True,
+              help="If given overwrites the start_time contained in the JSON config file. "
+                   "Must be given if it is not set in the config file.")
 @click.option('--start-time', type=click.DateTime(), default=None, show_default=True,
               help="If given overwrites the start_time contained in the JSON config file. "
                    "Must be given if it is not set in the config file.")
@@ -809,6 +899,8 @@ def cli():
                    "previously downloaded files are reused when applicable.")
 def export(config_file: str,
            output_dir: str,
+           output_format: str,
+           crawling_format: str,
            start_time: datetime,
            end_time: datetime,
            url: str,
@@ -817,11 +909,12 @@ def export(config_file: str,
            yes: bool):
     """
     Performs an export of data via the given JSON config which specifies the input datasource and a set of additional
-    postprocessing steps. Please see ``observe-csv --help`` for a description of the file format.
+    postprocessing steps. Please see ``observe-export --help`` for a description of the configuration file format.
 
     If the configuration does not specify either of the following attributes, then these must be specified via
-    the respective options: ``start_time``, ``end_time``, ``url``, ``user``, ``token``.
-    For the ``start_time`` and ``end_time`` the following formats are available:
+    the respective options: ``output_format``, ``crawling_format``, ``start_time``, ``end_time``, ``url``, ``user``,
+    ``token``. For the ``start_time`` and ``end_time`` the following formats may be used:
+    [%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%d %H:%M:%S]. Note that any time entered is interpreted as UTC.
 
     When large quantities of data are to be exported the user should specify the ``initial_interval_to_query_seconds``
     within the JSON config such that the time range to query starts off with something reasonable.
@@ -829,18 +922,24 @@ def export(config_file: str,
     .. warning::
 
       When the dataset or worksheet contains already aggregated data (for example some statistics of error types),
-      then the ``initial_interval_to_query_seconds`` should NOT be set, as otherwise the overview data is
+      then the ``initial_interval_to_query_seconds`` should NOT be set, as otherwise the data is
       downloaded for various time intervals and then afterwards aggregated, which probably was is not the intended
       use case.
 
-    When exporting chunks of data due to the 100k row limitation all CSVs are written in temporary files which
-    are afterwards aggregated. The export configuration allows to perform some post-processing:
+    When exporting chunks of data due to the 100k row limitation intermediate results are written in temporary files
+    which are afterwards aggregated. The export configuration allows to perform some post-processing:
 
     - enforce columns to be interpreted as strings via the ``string_columns`` list
+
     - filter columns via the ``columns_to_keep`` entry
+
     - sort the rows by (a list of columns) via the ``sort_keys`` entry
 
-    The exported csv data is always fully quoted to avoid ambiguities when reading it in other applications.
+    .. note::
+
+        When using CSV as output format the exported data is always fully quoted to avoid ambiguities when reading it
+        in other applications.
+
     """
     try:
         output_dir = replace_tilde_with_home_directory(output_dir)
@@ -853,12 +952,18 @@ def export(config_file: str,
             print(f"Have read the following {name} from the CLI and will overwrite value in export configuration: {value if not hide else '*'*len(value)}")
             patched_config = True
 
+        if output_format is not None:
+            ec.output_format = output_format
+            patch_config_notification("output_format", str(output_format))
+        if crawling_format is not None:
+            ec.crawling_format = crawling_format
+            patch_config_notification("crawling_format", str(crawling_format))
         if start_time is not None:
             ec.start_time = start_time
-            patch_config_notification("start time", str(start_time))
+            patch_config_notification("start_time", str(start_time))
         if end_time is not None:
             ec.end_time = end_time
-            patch_config_notification("end time", str(end_time))
+            patch_config_notification("end_time", str(end_time))
         if token is not None and token != "":
             ec.token = token
             patch_config_notification("token", str(token), hide=True)
@@ -870,6 +975,11 @@ def export(config_file: str,
             patch_config_notification("user", str(user))
 
         check_completeness_of_config(ec)
+        if ec.get_crawling_format() == Format.INVALID:
+            raise RuntimeError(
+                f"The chosen crawling_format \"{ec.crawling_format}\" is invalid. You must specify \"json\" or \"csv\".")
+        if ec.get_output_format() == Format.INVALID:
+            raise RuntimeError(f"The chosen output_format \"{ec.output_format}\" is invalid. You must specify \"json\" or \"csv\".")
 
         if patched_config:
             copy_with_masked_token = copy.deepcopy(ec)
@@ -900,6 +1010,8 @@ def full_example_dataset_config():
             comment="Any comment you put here will not be processed."
         ),
         filename_prefix="dataset_filename",
+        output_format="json",
+        crawling_format="json",
         string_columns=["col1"],
         sort_keys=["col2"],
         columns_to_keep=["col1", "col2", "col3"],
@@ -924,6 +1036,8 @@ def full_example_worksheet_config():
             comment="Any comment you put here will not be processed."
         ),
         filename_prefix="worksheet_filename",
+        output_format="json",
+        crawling_format="json",
         string_columns=["col1"],
         sort_keys=["col2"],
         columns_to_keep=["col1", "col2", "col3"],
@@ -946,6 +1060,8 @@ def minimal_example_dataset_config():
             dataset=12345678,
         ),
         filename_prefix="dataset_filename",
+        output_format="json",
+        crawling_format="json",
         start_time=datetime.now() - timedelta(hours=2),
         end_time=datetime.now() - timedelta(hours=1),
         url="xzy.observe.com",
@@ -965,6 +1081,8 @@ def minimal_example_worksheet_config():
             stage="stage-abcdefg",
         ),
         filename_prefix="worksheet_filename",
+        output_format="json",
+        crawling_format="json",
         start_time=datetime.now() - timedelta(hours=2),
         end_time=datetime.now() - timedelta(hours=1),
         url="xzy.observe.com",

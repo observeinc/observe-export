@@ -1,5 +1,5 @@
-# Observe-CSV
-A python tool (and library) to easily export data from Observe worksheets and datasets from the command line, including files larger than the maximum size configurable in the UI (100k rows).
+# Observe-Export
+A python tool (and library) to easily export data as CSV or JSON from Observe worksheets and datasets from the command line, including files larger than the maximum size configurable in the UI (100k rows).
 
 ## Dependencies & Requirements
 
@@ -41,14 +41,14 @@ Python libraries should generally be installed in individual virtual environment
 Hence, you should first create a virtual environment, e.g., using ```python3.X -m venv venv``` which creates the
 folder ```venv``` in the local directory. You may then activate this environment using ```source venv/bin/activate```.
 
-To install observe-csv it suffices to download the repository and execute the setup.py, e.g., via
+To install observe-export it suffices to download the repository and execute the setup.py, e.g., via
 ``` pip install . ```. ```pip``` will automatically install all dependencies (currently, including development 
 requirements as sphinx).
 
 In case that you want to extend the functionality of this package, it makes sense to install it as
 editable via ``` pip install . -e```
 
-Once installed, you can readily use the exporter using the command ```observe-csv```. Building on top of 
+Once installed, you can readily use the exporter using the command ```observe-export```. 
 
 ## Usage
 
@@ -58,10 +58,11 @@ You can create a HTML documentation by calling `make html` in the docs directory
 > **_NOTE:_** While this package comes with a command-line interface, you may also use its contents
 as library.
 
-### observe-csv
+
+### observe-export
 
 This module allows to export data from Observe worksheets and datasets to CSV files.
-Data can be exported via the command `observe-csv export <config> <output_directory>`.
+Data can be exported via the command `observe-export export <config> <output_directory>`.
 
 An example dataset export configuration may look like this:
 
@@ -75,6 +76,8 @@ An example dataset export configuration may look like this:
         "comment": "Any comment you put here will not be processed."
     },
     "filename_prefix": "dataset_filename",
+    "output_format": "json",
+    "crawling_format": :json",
     "string_columns": [
         "col1"
     ],
@@ -105,6 +108,8 @@ An example worksheet export configuration may look like this:
         "comment": "Any comment you put here will not be processed."
     },
     "filename_prefix": "worksheet_filename",
+    "output_format": "json",
+    "crawling_format": :json",
     "string_columns": [
         "col1"
     ],
@@ -133,7 +138,7 @@ must be specified via `stage`.
 As Observe enforces a 100k limit on returned rows for single queries the user may specify a temporal granularity
 via initial_interval_to_query_seconds\`  when it is likely that more than 100k will be returned.
 
-> **_WARNING:_** The value of `initial_interval_to_query_seconds` will dictate the query time window. Do not use this setting,
+**WARNING**: The value of `initial_interval_to_query_seconds` will dictate the query time window. Do not use this setting,
 i.e., leave it `null`, when you want to query aggregate data for example originating from a worksheet.
 
 For dataset exports, you may specify that the completeness of the data shall be verified. Here, an additional
@@ -145,6 +150,16 @@ For worksheet queries this additional check is not available.
 * `filename_prefix` specifies the prefix of the output file. Additional parts of the filename are the dataset source,
 
     and the start and end time.
+
+
+* `output_format` specifies whether the exported data shall be written as CSV or JSON. Acceptable values are
+“csv” or “json”.
+
+
+* `crawling_format` specifies whether the data shall be exported as CSV or JSON. CSV exports run generally faster
+due to the more compact data representation but may lead to problems when handling strings including commas or
+quotes. JSON is more robust but will take longer to download. Acceptable values for this field are again
+“csv” or “json”.
 
 
 * `string_columns` specifies that the given columns are to be loaded explicitly as strings into when processing
@@ -159,7 +174,7 @@ hence forcing the row to be converted to floats. This field is optional and can 
 
 * `columns_to_keep` can be used to filter down the output columns.
 
-> **_NOTE:_** Instead of filtering the data after having downloaded it, for datasets it makes sense to include a `pickl_col`
+**NOTE**: Instead of filtering the data after having downloaded it, for datasets it makes sense to include a `pickl_col`
 directive in the OPAL such that only the data really needed is downloaded.
 
 
@@ -177,48 +192,49 @@ directive in the OPAL such that only the data really needed is downloaded.
 
 * `token` the access token provisioned for the user to export the data/
 
-> **_NOTE:_** The following keys are optional: `initial_interval_to_query_seconds`, `comment`, `string_columns`,
+**NOTE**: The following keys are optional: `initial_interval_to_query_seconds`, `comment`, `string_columns`,
 `sort_keys`, `columns_to_keep`. Within the config these may either be set to  `null`, e.g.,
 `"string_columns": null`, or may not be specified at all.
 
-> **_NOTE:_** One may also omit setting all runtime specific settings, namely, `start_time`, `end_time`, `url`, `user`,
-and `token`. If these are `null`’ed or omitted the respective values must be provided via options
-when calling the `csv-observe export` command.
+**NOTE**: One may also omit setting all runtime specific settings, namely, `output_format`, `crawling_format`,
+`start_time`, `end_time`, `url`, `user`, and `token`. If these are `null`’ed or omitted the
+respective values must be provided via options when calling the `observe-export export` command.
 
-> **_WARNING:_** Dates and times are always interpreted as UTC times.
+**WARNING**: Dates and times are always interpreted as UTC times.
 
 To get the user started with writing configurations example configurations some samples can be glanced at using
 the following commands:
 
 
-* `observe-csv minimal-example-dataset-config` or `observe-csv full-example-dataset-config`
+* `observe-export minimal-example-dataset-config` or `observe-export full-example-dataset-config`
 
 
-* `observe-csv minimal-example-worksheet-config` or `observe-csv full-example-worksheet-config`
+* `observe-export minimal-example-worksheet-config` or `observe-export full-example-worksheet-config`
 
 ```shell
-observe-csv [OPTIONS] COMMAND [ARGS]...
+observe-export [OPTIONS] COMMAND [ARGS]...
 ```
 
 #### export
 
 Performs an export of data via the given JSON config which specifies the input datasource and a set of additional
-postprocessing steps. Please see `observe-csv --help` for a description of the file format.
+postprocessing steps. Please see `observe-export --help` for a description of the configuration file format.
 
 If the configuration does not specify either of the following attributes, then these must be specified via
-the respective options: `start_time`, `end_time`, `url`, `user`, `token`.
-For the `start_time` and `end_time` the following formats are available:
+the respective options: `output_format`, `crawling_format`, `start_time`, `end_time`, `url`, `user`,
+`token`. For the `start_time` and `end_time` the following formats may be used:
+[%Y-%m-%d|%Y-%m-%dT%H:%M:%S|%Y-%m-%d %H:%M:%S]. Note that any time entered is interpreted as UTC.
 
 When large quantities of data are to be exported the user should specify the `initial_interval_to_query_seconds`
 within the JSON config such that the time range to query starts off with something reasonable.
 
-> **_WARNING:_** When the dataset or worksheet contains already aggregated data (for example some statistics of error types),
-then the `initial_interval_to_query_seconds` should NOT be set, as otherwise the overview data is
+**WARNING**: When the dataset or worksheet contains already aggregated data (for example some statistics of error types),
+then the `initial_interval_to_query_seconds` should NOT be set, as otherwise the data is
 downloaded for various time intervals and then afterwards aggregated, which probably was is not the intended
 use case.
 
-When exporting chunks of data due to the 100k row limitation all CSVs are written in temporary files which
-are afterwards aggregated. The export configuration allows to perform some post-processing:
+When exporting chunks of data due to the 100k row limitation intermediate results are written in temporary files
+which are afterwards aggregated. The export configuration allows to perform some post-processing:
 
 
 * enforce columns to be interpreted as strings via the `string_columns` list
@@ -229,13 +245,26 @@ are afterwards aggregated. The export configuration allows to perform some post-
 
 * sort the rows by (a list of columns) via the `sort_keys` entry
 
-The exported csv data is always fully quoted to avoid ambiguities when reading it in other applications.
+**NOTE**: When using CSV as output format the exported data is always fully quoted to avoid ambiguities when reading it
+in other applications.
 
 ```shell
-observe-csv export [OPTIONS] CONFIG_FILE OUTPUT_DIR
+observe-export export [OPTIONS] CONFIG_FILE OUTPUT_DIR
 ```
 
 ### Options
+
+
+### --output-format( <output_format>)
+If given overwrites the output_format field contained in the JSON config. Must be given if it is not set in the config file. Must either be “json’ or “csv’.
+
+
+### --crawling-format( <crawling_format>)
+If given overwrites the crawling_format field contained in the JSON config. Must be given if it is not set in the config file. Must either be “json’ or “csv’.
+
+
+### --start-time( <start_time>)
+If given overwrites the start_time contained in the JSON config file. Must be given if it is not set in the config file.
 
 
 ### --start-time( <start_time>)
@@ -252,7 +281,7 @@ If given overwrites the URL to access observe in the JSON config file. If a $OBS
 
 * **Default**
 
-    <function <lambda> at 0x115f8ab80>
+    <function <lambda> at 0x124657790>
 
 
 
@@ -262,7 +291,7 @@ If given overwrites the observe user to access observe in the JSON config file. 
 
 * **Default**
 
-    <function <lambda> at 0x115f8aca0>
+    <function <lambda> at 0x1246578b0>
 
 
 
@@ -272,7 +301,7 @@ If given overwrites the token to access Observe contained in the JSON file. If a
 
 * **Default**
 
-    <function <lambda> at 0x115f8adc0>
+    <function <lambda> at 0x1246579d0>
 
 
 
@@ -300,7 +329,7 @@ Required argument
 Outputs a dataset JSON example config with all fields set.
 
 ```shell
-observe-csv full-example-dataset-config [OPTIONS]
+observe-export full-example-dataset-config [OPTIONS]
 ```
 
 #### full-example-worksheet-config
@@ -308,7 +337,7 @@ observe-csv full-example-dataset-config [OPTIONS]
 Outputs a worksheet JSON example config with all fields set.
 
 ```shell
-observe-csv full-example-worksheet-config [OPTIONS]
+observe-export full-example-worksheet-config [OPTIONS]
 ```
 
 #### minimal-example-dataset-config
@@ -316,7 +345,7 @@ observe-csv full-example-worksheet-config [OPTIONS]
 Outputs a minimal dataset JSON example config with optional fields nulled.
 
 ```shell
-observe-csv minimal-example-dataset-config [OPTIONS]
+observe-export minimal-example-dataset-config [OPTIONS]
 ```
 
 #### minimal-example-worksheet-config
@@ -324,13 +353,13 @@ observe-csv minimal-example-dataset-config [OPTIONS]
 Outputs a minimal worksheet JSON example config with optional fields nulled.
 
 ```shell
-observe-csv minimal-example-worksheet-config [OPTIONS]
+observe-export minimal-example-worksheet-config [OPTIONS]
 ```
 
 ## Code Documentation
 
 
-### _class_ observe_csv.observe_csv.DataSourceDataset(dataset: int, opal_query: Optional[str] = None, initial_interval_to_query_seconds: Optional[int] = None, check_completeness_of_data: Optional[bool] = None, comment: Optional[str] = '')
+### _class_ observe_export.observe_export.DataSourceDataset(dataset: int, opal_query: Optional[str] = None, initial_interval_to_query_seconds: Optional[int] = None, check_completeness_of_data: Optional[bool] = None, comment: Optional[str] = '')
 Specifies that a dataset data should be retrieved.
 You may specify an arbitrary opal_query as string. If none is provided, then the dataset is returned as it.
 If the initial_interval_to_query_seconds is specified, the dataset will be queried in chunks starting at the given size.
@@ -340,16 +369,20 @@ to see whether there is any gap between the exported data and the data that shou
 The comment attribute can be set to help creators set attribute the datasource with a meaningful name.
 
 
-### _class_ observe_csv.observe_csv.DataSourceWorksheet(worksheet: int, stage: str, initial_interval_to_query_seconds: Optional[int] = None, comment: Optional[str] = '')
+### _class_ observe_export.observe_export.DataSourceWorksheet(worksheet: int, stage: str, initial_interval_to_query_seconds: Optional[int] = None, comment: Optional[str] = '')
 Specifies that worksheet data from the given stage name should be retrieved.
 If the initial_interval_to_query_seconds is specified, the worksheet will be queried in chunks starting at the given size.
 If the initial_interval_to_query_seconds is None the whole worksheet will be queried as it.
 The comment attribute can be set to help creators set attribute the datasource with a meaningful name.
 
 
-### _class_ observe_csv.observe_csv.ExportConfig(datasource: Union[observe_csv.observe_csv.DataSourceDataset, observe_csv.observe_csv.DataSourceWorksheet], filename_prefix: str, string_columns: Optional[List[str]] = None, sort_keys: Optional[List[str]] = None, columns_to_keep: Optional[List[str]] = None, start_time: Optional[datetime.datetime] = '1970-01-01T01:00:00', end_time: Optional[datetime.datetime] = '1970-01-01T01:00:00', url: Optional[str] = None, user: Optional[str] = None, token: Optional[str] = None)
+### _class_ observe_export.observe_export.ExportConfig(datasource: Union[DataSourceDataset, DataSourceWorksheet], filename_prefix: str, output_format: str = '', crawling_format: str = '', string_columns: Optional[List[str]] = None, sort_keys: Optional[List[str]] = None, columns_to_keep: Optional[List[str]] = None, start_time: Optional[datetime] = '1970-01-01T01:00:00', end_time: Optional[datetime] = '1970-01-01T01:00:00', url: Optional[str] = None, user: Optional[str] = None, token: Optional[str] = None)
 Specifies a data source to export. The datasource can either be a dataset (with an OPAL query) or a worksheet.
 The exported data will be written into a file prefixed by the one given in the configuration.
+Valid output formats are ‘csv’ and ‘json’. You may also specify the format with which the data is crawled.
+CSV is generally much more compact but is troublesome when dealing with strings containing quotations or
+commas. JSON is more robust but file are larger, slowing down the downloading process.
+
 The other fields have the following meaning:
 
 
@@ -379,7 +412,11 @@ NaN values.
 * token: the observe access token to use for exporting the data.
 
 
-### observe_csv.observe_csv.ask_for_necessary_creation_of_directory(dir: pathlib.Path, auto_create: bool = False)
+### _class_ observe_export.observe_export.Format(value)
+An enumeration.
+
+
+### observe_export.observe_export.ask_for_necessary_creation_of_directory(dir: Path, auto_create: bool = False)
 Simple helper to ask for the creation of a directory, unless auto_create is set to true, in which case
 the directory  is just created.
 
@@ -400,7 +437,14 @@ the directory  is just created.
 
 
 
-### observe_csv.observe_csv.crawl(output_dir: pathlib.Path, file_prefix: str, file_suffix: str, start_time: datetime.datetime, end_time: datetime.datetime, initial_interval_in_seconds: Optional[int], get_crawling_command: Callable[[datetime.datetime, datetime.datetime, pathlib.Path], str], few_lines_warning: bool = False, yes: bool = False)
+### observe_export.observe_export.check_completeness_of_config(ec: ExportConfig)
+Checks that all essential fields that are optional are provided;
+raises ValueError if some parameter is missing
+:param ec: config to be checked
+:return:
+
+
+### observe_export.observe_export.crawl(output_dir: Path, file_prefix: str, file_suffix: str, start_time: datetime, end_time: datetime, initial_interval_in_seconds: Optional[int], get_crawling_command: Callable[[datetime, datetime, Path], str], crawling_format: Format, few_lines_warning: bool = False, yes: bool = False)
 This function perform a series of crawl commands (defined by the get_crawling_command callback) to crawl
 either a dataset or worksheet from Observe. Multiple crawl commands may be executed as Observe’s CSV export
 only allows to obtain 100k rows at a time. For larger datasets/worksheets, the requested time period
@@ -442,7 +486,7 @@ The downloaded csv files are written to disk and returned as a list of paths to 
 
 
 
-### observe_csv.observe_csv.floor_timedelta_to_seconds(td: datetime.timedelta)
+### observe_export.observe_export.floor_timedelta_to_seconds(td: timedelta)
 Removes any sub-second time from the timedelta
 
 
@@ -458,7 +502,7 @@ Removes any sub-second time from the timedelta
 
 
 
-### observe_csv.observe_csv.get_curl_dataset_payload(dataset_id: int, pipeline_steps: List[str])
+### observe_export.observe_export.get_curl_dataset_payload(dataset_id: int, pipeline_steps: List[str])
 returns a “curl-passable” payload for requesting data from a dataset under the given OPAL pipeline_steps
 
 
@@ -479,7 +523,7 @@ returns a “curl-passable” payload for requesting data from a dataset under t
 
 
 
-### observe_csv.observe_csv.get_first_line_and_line_count(file: pathlib.Path)
+### observe_export.observe_export.get_first_line_and_line_count(file: Path)
 
 * **Parameters**
 
@@ -493,7 +537,7 @@ returns a “curl-passable” payload for requesting data from a dataset under t
 
 
 
-### observe_csv.observe_csv.get_iso_file_format(time: datetime.datetime)
+### observe_export.observe_export.get_iso_file_format(time: datetime)
 Returns a given datetime in iso format where dashes and colons are replaced by underscores.
 
 
@@ -508,7 +552,7 @@ Returns a given datetime in iso format where dashes and colons are replaced by u
     
 
 
-### observe_csv.observe_csv.get_iso_format(time: datetime.datetime)
+### observe_export.observe_export.get_iso_format(time: datetime)
 Returns a given datetime in iso format as string
 
 
@@ -525,7 +569,7 @@ Returns a given datetime in iso format as string
 
 
 
-### observe_csv.observe_csv.get_output_file_globbing_template(output_dir: pathlib.Path, file_prefix: str, file_suffix: str)
+### observe_export.observe_export.get_output_file_globbing_template(output_dir: Path, file_prefix: str, file_suffix: str)
 Returns a canonical path with the given parameters where the start and end times are replaced with a globbing
 expression (?).
 
@@ -549,7 +593,7 @@ expression (?).
 
 
 
-### observe_csv.observe_csv.get_output_file_simple(output_dir: pathlib.Path, file_prefix: str, start_time: datetime.datetime, end_time: datetime.datetime, file_suffix: str)
+### observe_export.observe_export.get_output_file_simple(output_dir: Path, file_prefix: str, start_time: datetime, end_time: datetime, file_suffix: str)
 Returns a canonical path based on the parameters
 
 
@@ -577,7 +621,7 @@ Returns a canonical path based on the parameters
     
 
 
-### observe_csv.observe_csv.load_export_config_from_file(file: pathlib.Path)
+### observe_export.observe_export.load_export_config_from_file(file: Path)
 Given a path reads the JSON and resolves Union types that otherwise would need “hidden” identifier fields.
 
 
@@ -593,7 +637,7 @@ Given a path reads the JSON and resolves Union types that otherwise would need �
 
 
 
-### observe_csv.observe_csv.parse_dates_from_filename(file: pathlib.Path)
+### observe_export.observe_export.parse_dates_from_filename(file: Path)
 Extracts the start and end time from an existing file.
 
 
@@ -609,7 +653,7 @@ Extracts the start and end time from an existing file.
 
 
 
-### observe_csv.observe_csv.post_process_csv(output_dir: pathlib.Path, file_prefix: str, input_files: List[pathlib.Path], ec: observe_csv.observe_csv.ExportConfig, remove_input_files: Optional[bool] = False)
+### observe_export.observe_export.post_process_csv(output_dir: Path, file_prefix: str, input_files: List[Path], ec: ExportConfig, remove_input_files: Optional[bool] = False)
 Performs some post-processing on a (list of) CSV files:
 
 
@@ -650,7 +694,7 @@ Performs some post-processing on a (list of) CSV files:
 
 
 
-### observe_csv.observe_csv.process_dataset_config(output_dir: pathlib.Path, ec: observe_csv.observe_csv.ExportConfig, yes: bool)
+### observe_export.observe_export.process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool)
 Processes a single DATASET export configuration and executes all actions specified by it (downloading, processing).
 
 
@@ -673,7 +717,7 @@ Processes a single DATASET export configuration and executes all actions specifi
 
 
 
-### observe_csv.observe_csv.process_export_config(output_dir: pathlib.Path, ec: observe_csv.observe_csv.ExportConfig, yes: bool)
+### observe_export.observe_export.process_export_config(output_dir: Path, ec: ExportConfig, yes: bool)
 Handle an export config according to its datasource.
 
 
@@ -696,7 +740,7 @@ Handle an export config according to its datasource.
 
 
 
-### observe_csv.observe_csv.process_worksheet_config(output_dir: pathlib.Path, ec: observe_csv.observe_csv.ExportConfig, yes: bool)
+### observe_export.observe_export.process_worksheet_config(output_dir: Path, ec: ExportConfig, yes: bool)
 Processes a single WORKSHEET export configuration for downloading it.
 
 
@@ -719,7 +763,7 @@ Processes a single WORKSHEET export configuration for downloading it.
 
 
 
-### observe_csv.observe_csv.remove_files(file_or_files: Union[pathlib.Path, Iterable[pathlib.Path]])
+### observe_export.observe_export.remove_files(file_or_files: Union[Path, Iterable[Path]])
 
 * **Parameters**
 
@@ -733,7 +777,7 @@ Processes a single WORKSHEET export configuration for downloading it.
 
 
 
-### observe_csv.observe_csv.replace_tilde_with_home_directory(path: Union[str, pathlib.Path])
+### observe_export.observe_export.replace_tilde_with_home_directory(path: Union[str, Path])
 Resolves the home directory if encountered in a path
 
 
