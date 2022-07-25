@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'observe-csv'
+project = 'observe-export'
 copyright = '2022, Observe, Inc.'
 author = 'Observe, Inc.'
 

@@ -14,13 +14,13 @@ install_requires = [
 ]
 
 setup(
-    name="observe_csv",
+    name="observe_export",
     version="0.0.1",
     packages=find_packages(),
     install_requires=install_requires,
     entry_points={
         "console_scripts": [
-            "observe-csv = observe_csv.observe_csv:cli",
+            "observe-export = observe_export.observe_export:cli",
         ]
     }
 )
