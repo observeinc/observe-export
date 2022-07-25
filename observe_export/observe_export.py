@@ -744,7 +744,7 @@ def cli():
             },
             "filename_prefix": "dataset_filename",
             "output_format": "json",
-            "crawling_format": :json",
+            "crawling_format": "json",
             "string_columns": [
                 "col1"
             ],
@@ -776,7 +776,7 @@ def cli():
             },
             "filename_prefix": "worksheet_filename",
             "output_format": "json",
-            "crawling_format": :json",
+            "crawling_format": "json",
             "string_columns": [
                 "col1"
             ],

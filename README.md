@@ -77,7 +77,7 @@ An example dataset export configuration may look like this:
     },
     "filename_prefix": "dataset_filename",
     "output_format": "json",
-    "crawling_format": :json",
+    "crawling_format": "json",
     "string_columns": [
         "col1"
     ],
@@ -109,7 +109,7 @@ An example worksheet export configuration may look like this:
     },
     "filename_prefix": "worksheet_filename",
     "output_format": "json",
-    "crawling_format": :json",
+    "crawling_format": "json",
     "string_columns": [
         "col1"
     ],
@@ -260,7 +260,7 @@ If given overwrites the output_format field contained in the JSON config. Must b
 
 
 ### --crawling-format( <crawling_format>)
-If given overwrites the crawling_format field contained in the JSON config. Must be given if it is not set in the config file. Must either be “json’ or “csv’.
+If given overwrites the crawling_format field contained in the JSON config. If not given and not specified in the JSON config “json” is used. Must either be “json’ or “csv’.
 
 
 ### --start-time( <start_time>)
@@ -281,7 +281,7 @@ If given overwrites the URL to access observe in the JSON config file. If a $OBS
 
 * **Default**
 
-    <function <lambda> at 0x124657790>
+    <function <lambda> at 0x127c87820>
 
 
 
@@ -291,7 +291,7 @@ If given overwrites the observe user to access observe in the JSON config file. 
 
 * **Default**
 
-    <function <lambda> at 0x1246578b0>
+    <function <lambda> at 0x127c87940>
 
 
 
@@ -301,7 +301,7 @@ If given overwrites the token to access Observe contained in the JSON file. If a
 
 * **Default**
 
-    <function <lambda> at 0x1246579d0>
+    <function <lambda> at 0x127c87a60>
 
 
 
@@ -376,12 +376,12 @@ If the initial_interval_to_query_seconds is None the whole worksheet will be que
 The comment attribute can be set to help creators set attribute the datasource with a meaningful name.
 
 
-### _class_ observe_export.observe_export.ExportConfig(datasource: Union[DataSourceDataset, DataSourceWorksheet], filename_prefix: str, output_format: str = '', crawling_format: str = '', string_columns: Optional[List[str]] = None, sort_keys: Optional[List[str]] = None, columns_to_keep: Optional[List[str]] = None, start_time: Optional[datetime] = '1970-01-01T01:00:00', end_time: Optional[datetime] = '1970-01-01T01:00:00', url: Optional[str] = None, user: Optional[str] = None, token: Optional[str] = None)
+### _class_ observe_export.observe_export.ExportConfig(datasource: Union[DataSourceDataset, DataSourceWorksheet], filename_prefix: str, output_format: str = '', crawling_format: str = 'json', string_columns: Optional[List[str]] = None, sort_keys: Optional[List[str]] = None, columns_to_keep: Optional[List[str]] = None, start_time: Optional[datetime] = '1970-01-01T01:00:00', end_time: Optional[datetime] = '1970-01-01T01:00:00', url: Optional[str] = None, user: Optional[str] = None, token: Optional[str] = None)
 Specifies a data source to export. The datasource can either be a dataset (with an OPAL query) or a worksheet.
 The exported data will be written into a file prefixed by the one given in the configuration.
 Valid output formats are ‘csv’ and ‘json’. You may also specify the format with which the data is crawled.
 CSV is generally much more compact but is troublesome when dealing with strings containing quotations or
-commas. JSON is more robust but file are larger, slowing down the downloading process.
+commas. JSON is more robust but file are larger, slowing down the downloading process. By default JSON is used.
 
 The other fields have the following meaning:
 
