@@ -252,6 +252,8 @@ class ExportConfig:
     - url: the observe url to query the data from.
     - user: the observe user for querying the data.
     - token: the observe access token to use for exporting the data.
+    - log_curl_statements: is a field set at runtime and is not read when parsing the configuration due to the leaking
+      of tokens
     """
     datasource: Union[DataSourceDataset, DataSourceWorksheet]
     filename_prefix: str
@@ -277,6 +279,7 @@ class ExportConfig:
     url: Optional[str] = None
     user: Optional[str] = None
     token: Optional[str] = None
+    log_curl_statements: Optional[bool] = None
 
     def get_output_format(self) -> Format:
         return Format.from_string(self.output_format)
@@ -314,7 +317,8 @@ def crawl(output_dir: Path,
           get_crawling_command: Callable[[datetime, datetime, Path], str],
           crawling_format: Format,
           few_lines_warning: bool = False,
-          yes: bool = False) -> List[Path]:
+          yes: bool = False,
+          log_curl_statements: bool = False) -> List[Path]:
     """
     This function perform a series of crawl commands (defined by the get_crawling_command callback) to crawl
     either a dataset or worksheet from Observe. Multiple crawl commands may be executed as Observe's CSV export
@@ -330,6 +334,8 @@ def crawl(output_dir: Path,
     :param initial_interval_in_seconds: if given, defines the initial query window
     :param get_crawling_command: function which returns the actual crawling command
     :param few_lines_warning: whether to warn about few returned rows or not
+    :param yes: whether to answer all potential questions per default with yes
+    :param log_curl_statements: whether executed curl commands are to be logged on stdout
 
     :return: the list of paths that were downloaded from Observe
     """
@@ -379,6 +385,8 @@ def crawl(output_dir: Path,
         output_file = get_output_file_simple(output_dir, file_prefix, current_start_time, current_end_time, file_suffix)
         actual_command_to_execute = get_crawling_command(current_start_time, current_end_time, output_file)
 
+        if log_curl_statements:
+            print(f"going to execute the following curl command:\n{actual_command_to_execute}")
         # execute command using subprocess!
         exec_start = time.time()
         subprocess.run(actual_command_to_execute, shell=True, check=True)
@@ -552,7 +560,8 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
                              ds.initial_interval_to_query_seconds,
                              get_crawling_command_for_payload(payload),
                              crawling_format,
-                             yes=yes
+                             yes=yes,
+                             log_curl_statements=ec.log_curl_statements,
                              )
     main_result_file = post_process_csv(output_dir, file_prefix, files_downloaded, ec, remove_input_files=True)
 
@@ -568,7 +577,8 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
                                  get_crawling_command_for_payload(payload),
                                  crawling_format,
                                  few_lines_warning=False,
-                                 yes=yes
+                                 yes=yes,
+                                 log_curl_statements=ec.log_curl_statements,
                                  )
         if len(files_downloaded) != 1:
             raise ValueError(
@@ -644,7 +654,8 @@ def process_worksheet_config(output_dir: Path, ec: ExportConfig, yes: bool) -> P
                              ds.initial_interval_to_query_seconds,
                              get_crawling_command,
                              crawling_format,
-                             yes=yes
+                             yes=yes,
+                             log_curl_statements=ec.log_curl_statements,
                              )
     main_result_file = post_process_csv(output_dir, file_prefix, files_downloaded, ec, remove_input_files=True)
 
@@ -897,6 +908,8 @@ def cli():
 @click.option('--yes', is_flag=True, default=False, show_default=True,
               help="If set does not require manual interaction: directories are created without confirmation and "
                    "previously downloaded files are reused when applicable.")
+@click.option('--log-curl-statements', is_flag=True, default=False, show_default=True,
+              help="If set the executed 'curl' commands for retrieving data are logged on stdout.")
 def export(config_file: str,
            output_dir: str,
            output_format: str,
@@ -906,7 +919,8 @@ def export(config_file: str,
            url: str,
            user: str,
            token: str,
-           yes: bool):
+           yes: bool,
+           log_curl_statements: bool):
     """
     Performs an export of data via the given JSON config which specifies the input datasource and a set of additional
     postprocessing steps. Please see ``observe-export --help`` for a description of the configuration file format.
@@ -973,6 +987,10 @@ def export(config_file: str,
         if user is not None:
             ec.user = user
             patch_config_notification("user", str(user))
+
+        # this flag is always set, and cannot be stored in the config
+        ec.log_curl_statements = log_curl_statements
+
 
         check_completeness_of_config(ec)
         if ec.get_crawling_format() == Format.INVALID:

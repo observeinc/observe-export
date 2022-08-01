@@ -281,7 +281,7 @@ If given overwrites the URL to access observe in the JSON config file. If a $OBS
 
 * **Default**
 
-    <function <lambda> at 0x127c87820>
+    <function <lambda> at 0x10dc725e0>
 
 
 
@@ -291,7 +291,7 @@ If given overwrites the observe user to access observe in the JSON config file. 
 
 * **Default**
 
-    <function <lambda> at 0x127c87940>
+    <function <lambda> at 0x10dc72700>
 
 
 
@@ -301,12 +301,22 @@ If given overwrites the token to access Observe contained in the JSON file. If a
 
 * **Default**
 
-    <function <lambda> at 0x127c87a60>
+    <function <lambda> at 0x10dc72820>
 
 
 
 ### --yes()
 If set does not require manual interaction: directories are created without confirmation and previously downloaded files are reused when applicable.
+
+
+* **Default**
+
+    False
+
+
+
+### --log-curl-statements()
+If set the executed ‘curl’ commands for retrieving data are logged on stdout.
 
 
 * **Default**
@@ -376,7 +386,7 @@ If the initial_interval_to_query_seconds is None the whole worksheet will be que
 The comment attribute can be set to help creators set attribute the datasource with a meaningful name.
 
 
-### _class_ observe_export.observe_export.ExportConfig(datasource: Union[DataSourceDataset, DataSourceWorksheet], filename_prefix: str, output_format: str = '', crawling_format: str = 'json', string_columns: Optional[List[str]] = None, sort_keys: Optional[List[str]] = None, columns_to_keep: Optional[List[str]] = None, start_time: Optional[datetime] = '1970-01-01T01:00:00', end_time: Optional[datetime] = '1970-01-01T01:00:00', url: Optional[str] = None, user: Optional[str] = None, token: Optional[str] = None)
+### _class_ observe_export.observe_export.ExportConfig(datasource: Union[DataSourceDataset, DataSourceWorksheet], filename_prefix: str, output_format: str = '', crawling_format: str = 'json', string_columns: Optional[List[str]] = None, sort_keys: Optional[List[str]] = None, columns_to_keep: Optional[List[str]] = None, start_time: Optional[datetime] = '1970-01-01T01:00:00', end_time: Optional[datetime] = '1970-01-01T01:00:00', url: Optional[str] = None, user: Optional[str] = None, token: Optional[str] = None, log_curl_statements: Optional[bool] = None)
 Specifies a data source to export. The datasource can either be a dataset (with an OPAL query) or a worksheet.
 The exported data will be written into a file prefixed by the one given in the configuration.
 Valid output formats are ‘csv’ and ‘json’. You may also specify the format with which the data is crawled.
@@ -412,6 +422,10 @@ NaN values.
 * token: the observe access token to use for exporting the data.
 
 
+* log_curl_statements: is a field set at runtime and is not read when parsing the configuration due to the leaking
+of tokens
+
+
 ### _class_ observe_export.observe_export.Format(value)
 An enumeration.
 
@@ -444,7 +458,7 @@ raises ValueError if some parameter is missing
 :return:
 
 
-### observe_export.observe_export.crawl(output_dir: Path, file_prefix: str, file_suffix: str, start_time: datetime, end_time: datetime, initial_interval_in_seconds: Optional[int], get_crawling_command: Callable[[datetime, datetime, Path], str], crawling_format: Format, few_lines_warning: bool = False, yes: bool = False)
+### observe_export.observe_export.crawl(output_dir: Path, file_prefix: str, file_suffix: str, start_time: datetime, end_time: datetime, initial_interval_in_seconds: Optional[int], get_crawling_command: Callable[[datetime, datetime, Path], str], crawling_format: Format, few_lines_warning: bool = False, yes: bool = False, log_curl_statements: bool = False)
 This function perform a series of crawl commands (defined by the get_crawling_command callback) to crawl
 either a dataset or worksheet from Observe. Multiple crawl commands may be executed as Observe’s CSV export
 only allows to obtain 100k rows at a time. For larger datasets/worksheets, the requested time period
@@ -477,6 +491,12 @@ The downloaded csv files are written to disk and returned as a list of paths to 
 
 
     * **few_lines_warning** – whether to warn about few returned rows or not
+
+
+    * **yes** – whether to answer all potential questions per default with yes
+
+
+    * **log_curl_statements** – whether executed curl commands are to be logged on stdout
 
 
 
