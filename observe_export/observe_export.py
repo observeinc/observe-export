@@ -620,9 +620,9 @@ def process_worksheet_config(output_dir: Path, ec: ExportConfig, yes: bool) -> P
 
     # we will perform a query request
     if crawling_format == Format.CSV:
-        curl_str = f'curl -H "Authorization: Bearer {ec.user} {ec.token}" -H "Accept: text/csv" -H "content-type: application/x-ndjson"'
+        curl_str = f'curl -H "Authorization: Bearer {ec.user} {ec.token}" -H "Accept: text/csv" -H "Content-Type: application/json"'
     else:
-        curl_str = f'curl -H "Authorization: Bearer {ec.user} {ec.token}" -H "Accept: application/x-ndjson" -H "content-type: application/x-ndjson"'
+        curl_str = f'curl -H "Authorization: Bearer {ec.user} {ec.token}" -H "Accept: application/x-ndjson" -H "Content-Type: application/json"'
     url = f"'https://{ec.url}/v1/meta/export/worksheet/{ds.worksheet}'"
 
     def get_worksheet_payload(start_time: datetime, end_time: datetime) -> str:
