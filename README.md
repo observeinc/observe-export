@@ -91,9 +91,9 @@ An example dataset export configuration may look like this:
     ],
     "start_time": "2022-03-07T22:34:56.219209",
     "end_time": "2022-03-07T23:34:56.219215",
-    "url": "xzy.observe.com",
+    "url": "xzy.observeinc.com",
     "user": "xzy",
-    "token": "access token for user xzy on xzy.observe.com"
+    "token": "access token for user xzy on xzy.observeinc.com"
 }
 ```
 
@@ -123,9 +123,9 @@ An example worksheet export configuration may look like this:
     ],
     "start_time": "2022-03-07T22:34:48.591796",
     "end_time": "2022-03-07T23:34:48.591804",
-    "url": "xzy.observe.com",
+    "url": "xzy.observeinc.com",
     "user": "xzy",
-    "token": "access token for user xzy on xzy.observe.com"
+    "token": "access token for user xzy on xzy.observeinc.com"
 }
 ```
 
