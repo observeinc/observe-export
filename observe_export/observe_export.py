@@ -769,9 +769,9 @@ def cli():
             ],
             "start_time": "2022-03-07T22:34:56.219209",
             "end_time": "2022-03-07T23:34:56.219215",
-            "url": "xzy.observe.com",
+            "url": "xzy.observeinc.com",
             "user": "xzy",
-            "token": "access token for user xzy on xzy.observe.com"
+            "token": "access token for user xzy on xzy.observeinc.com"
         }
 
     An example worksheet export configuration may look like this:
@@ -801,9 +801,9 @@ def cli():
             ],
             "start_time": "2022-03-07T22:34:48.591796",
             "end_time": "2022-03-07T23:34:48.591804",
-            "url": "xzy.observe.com",
+            "url": "xzy.observeinc.com",
             "user": "xzy",
-            "token": "access token for user xzy on xzy.observe.com"
+            "token": "access token for user xzy on xzy.observeinc.com"
         }
 
 
@@ -1035,9 +1035,9 @@ def full_example_dataset_config():
         columns_to_keep=["col1", "col2", "col3"],
         start_time=datetime.now() - timedelta(hours=2),
         end_time=datetime.now() - timedelta(hours=1),
-        url="xzy.observe.com",
+        url="xzy.observeinc.com",
         user="xzy",
-        token="access token for user xzy on xzy.observe.com",
+        token="access token for user xzy on xzy.observeinc.com",
     )
     print(json.dumps(json.loads(ec.to_json()), indent=4))
 
@@ -1061,9 +1061,9 @@ def full_example_worksheet_config():
         columns_to_keep=["col1", "col2", "col3"],
         start_time=datetime.now() - timedelta(hours=2),
         end_time=datetime.now() - timedelta(hours=1),
-        url="xzy.observe.com",
+        url="xzy.observeinc.com",
         user="xzy",
-        token="access token for user xzy on xzy.observe.com",
+        token="access token for user xzy on xzy.observeinc.com",
     )
     print(json.dumps(json.loads(ec.to_json()), indent=4))
 
@@ -1082,9 +1082,9 @@ def minimal_example_dataset_config():
         crawling_format="json",
         start_time=datetime.now() - timedelta(hours=2),
         end_time=datetime.now() - timedelta(hours=1),
-        url="xzy.observe.com",
+        url="xzy.observeinc.com",
         user="xzy",
-        token="access token for user xzy on xzy.observe.com",
+        token="access token for user xzy on xzy.observeinc.com",
     )
     print(json.dumps(json.loads(ec.to_json()), indent=4))
 
@@ -1103,9 +1103,9 @@ def minimal_example_worksheet_config():
         crawling_format="json",
         start_time=datetime.now() - timedelta(hours=2),
         end_time=datetime.now() - timedelta(hours=1),
-        url="xzy.observe.com",
+        url="xzy.observeinc.com",
         user="xzy",
-        token="access token for user xzy on xzy.observe.com",
+        token="access token for user xzy on xzy.observeinc.com",
     )
     print(json.dumps(json.loads(ec.to_json()), indent=4))
 
