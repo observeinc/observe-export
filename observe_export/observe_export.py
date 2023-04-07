@@ -585,9 +585,9 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
                 f"Was expecting to find exactly one csv file with the correctness data but found multiple: {files_downloaded}")
         correctness_file = files_downloaded[0]
         if crawling_format == Format.CSV:
-            expected_number_of_lines = pd.read_csv(correctness_file, header=0)["count"][0]
+            expected_number_of_lines = pd.read_csv(correctness_file, header=0)["count"].get(0, 0)
         else:
-            expected_number_of_lines = pd.read_json(correctness_file, lines=True)["count"][0]
+            expected_number_of_lines = pd.read_json(correctness_file, lines=True)["count"].get(0, 0)
         _, number_of_lines_exported = get_first_line_and_line_count(main_result_file)
         if expected_number_of_lines == number_of_lines_exported:
             print("\tCompleteness check passed!\n\t\t all rows were exported!")
