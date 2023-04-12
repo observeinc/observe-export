@@ -624,20 +624,17 @@ def process_worksheet_config(output_dir: Path, ec: ExportConfig, yes: bool) -> P
         curl_str = f'curl -H "Authorization: Bearer {ec.user} {ec.token}" -H "Accept: text/csv" -H "Content-Type: application/json"'
     else:
         curl_str = f'curl -H "Authorization: Bearer {ec.user} {ec.token}" -H "Accept: application/x-ndjson" -H "Content-Type: application/json"'
-    url = f"'https://{ec.url}/v1/meta/export/worksheet/{ds.worksheet}'"
 
-    def get_worksheet_payload(start_time: datetime, end_time: datetime) -> str:
-        payload = {
-            "startTime": get_iso_format(start_time),
-            "endTime": get_iso_format(end_time),
-            "stage": ds.stage,
-        }
-        return "-d '{}'".format(str(payload).replace('"', '\\"').replace("'", "\""))
+    url_and_time = f'https://{ec.url}/v1/meta/export/worksheet/{ds.worksheet}' + '?startTime={XYZstartTimeZYX}&endTime={XYZendTimeZYX}&stage={XYZstageZYX}'
+    url_and_time = f"\'{url_and_time}\'"
 
     def get_crawling_command(start_time: datetime, end_time: datetime, output_file: Path) -> str:
         curl_command = f"{curl_str} "
-        curl_command += url
-        curl_command += " " + get_worksheet_payload(start_time, end_time)
+        curl_command += url_and_time.format(
+                XYZstartTimeZYX=get_iso_format(start_time),
+                XYZendTimeZYX=get_iso_format(end_time),
+                XYZstageZYX=ds.stage)
+        curl_command += ' -d ""' # for ensuring that we execute a POST query
         curl_command += f" > {str(output_file.resolve())}"
         return curl_command
 
