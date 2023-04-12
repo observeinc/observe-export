@@ -1,8 +1,8 @@
 from setuptools import setup, find_packages
 
 install_requires = [
+    "wheel",
     "click",
-    "matplotlib",
     "numpy",
     "pandas",
     "psutil",
