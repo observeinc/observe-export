@@ -154,9 +154,10 @@ def get_first_line_and_line_count(file: Path) -> Tuple[str, int]:
     :return: the first line of the file and the number of remaining lines
     """
     with open(file) as f:
-        first_line = f.readline()
-        number_of_lines = len(f.readlines())
-        return first_line, number_of_lines
+        lines = f.readlines()
+        if len(lines) > 0:
+            return lines[0], len(lines)
+        raise ValueError(f"file {file} is empty")
 
 
 def remove_files(file_or_files: Union[Path, Iterable[Path]]) -> None:
