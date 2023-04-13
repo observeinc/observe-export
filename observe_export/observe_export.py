@@ -1,6 +1,7 @@
 import copy
 import csv
 import enum
+import math
 import subprocess
 import sys
 import traceback
@@ -155,9 +156,11 @@ def get_first_line_and_line_count(file: Path) -> Tuple[str, int]:
     """
     with open(file) as f:
         lines = f.readlines()
+        line_count = len(lines)
         if len(lines) > 0:
-            return lines[0], len(lines)
-        raise ValueError(f"file {file} is empty")
+            return lines[0].replace("\n", ""), line_count
+        else:
+            return "", line_count
 
 
 def remove_files(file_or_files: Union[Path, Iterable[Path]]) -> None:
@@ -518,6 +521,7 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
     ds: DataSourceDataset = ec.datasource
 
     crawling_format = ec.get_crawling_format()
+    output_format = ec.get_output_format()
 
     pipeline_steps = ""
     if ds.opal_query is not None and ds.opal_query != "":
@@ -585,15 +589,30 @@ def process_dataset_config(output_dir: Path, ec: ExportConfig, yes: bool) -> Pat
             raise ValueError(
                 f"Was expecting to find exactly one csv file with the correctness data but found multiple: {files_downloaded}")
         correctness_file = files_downloaded[0]
-        if crawling_format == Format.CSV:
-            expected_number_of_lines = pd.read_csv(correctness_file, header=0)["count"][0]
+        correctness_first_line, correctness_file_lines = get_first_line_and_line_count(correctness_file)
+        if correctness_first_line == "":
+            expected_number_of_lines = 0
         else:
-            expected_number_of_lines = pd.read_json(correctness_file, lines=True)["count"][0]
-        _, number_of_lines_exported = get_first_line_and_line_count(main_result_file)
+            if crawling_format == Format.CSV:
+                expected_number_of_lines = pd.read_csv(correctness_file, header=0)["count"].get(0,0)
+            else:
+                expected_number_of_lines = pd.read_json(correctness_file, lines=True)["count"].get(0,0)
+
+        first_line, number_of_lines_exported = get_first_line_and_line_count(main_result_file)
+        if first_line == "":
+            number_of_lines_exported = 0
+        else:
+            print(output_format, crawling_format)
+            if output_format == Format.CSV:
+                number_of_lines_exported -= 1   # csv has header
+
         if expected_number_of_lines == number_of_lines_exported:
             print("\tCompleteness check passed!\n\t\t all rows were exported!")
         else:
-            missing_percent = 1 - float(number_of_lines_exported) / expected_number_of_lines
+            if expected_number_of_lines != 0:
+                missing_percent = 1 - float(number_of_lines_exported) / expected_number_of_lines
+            else:
+                missing_percent = math.inf
             warnings.warn(f"\tCompleteness check failed \n\t\t.. only {number_of_lines_exported} rows were exported "
                           f"but should have exported {expected_number_of_lines}!"
                           f"\n\t\t.. we are missing {100 * missing_percent:.3f}% for {main_result_file.resolve()}!")
