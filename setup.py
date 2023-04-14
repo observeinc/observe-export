@@ -1,6 +1,7 @@
 from setuptools import setup, find_packages
 
 install_requires = [
+    "wheel",
     "click",
     "numpy",
     "pandas",
