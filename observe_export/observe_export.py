@@ -253,8 +253,8 @@ class ExportConfig:
     - columns_to_keep: specifies which columns to export (optional); especially useful for worksheets.
     - start_time: the start time of data to be queried from observe.
     - end_time: the end time of data to be queried from observe.
-    - url: the observe url to query the data from.
-    - user: the observe user for querying the data.
+    - url: the observe url to query the data from. It should not contain "https://".
+    - user: it specifies the customer id, i.e., the first part of the url before `observeinc.com`; as this is part of the url already, specifying it is optional. 
     - token: the observe access token to use for exporting the data.
     - log_curl_statements: is a field set at runtime and is not read when parsing the configuration due to the leaking
       of tokens
@@ -725,6 +725,10 @@ def load_export_config_from_file(file: Path) -> ExportConfig:
         export_config.datasource = DataSourceWorksheet.from_dict(export_config.datasource)
     else:
         raise ValueError(f"Could not resolve the following data source: {export_config.datasource}")
+    
+    if export_config.user == None: 
+        export_config.user = export_config.url.split('.')[0]
+
     return export_config
 
 
@@ -864,8 +868,8 @@ def cli():
 
     - ``start_time`` defines the start of the query window and must be given according to the UTC timezone.
     - ``start_time`` defines the end of the query window and must be given according to the UTC timezone.
-    - ``url`` defines the observe url to query the data from.
-    - ``user`` defines the user account to use for the export of the data.
+    - ``url`` defines the observe url to query the data from. It should not contain "https://".
+    - ``user`` specifies the customer id, i.e., the first part of the url before observeinc.com; as this is part of the url already, specifying it is optional. 
     - ``token`` the access token provisioned for the user to export the data/
 
     .. note::

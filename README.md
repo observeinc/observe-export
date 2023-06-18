@@ -30,7 +30,7 @@ If exporting the results of a dataset query you will need the Observe Dataset ID
 |------|----------|---------|---------|
 | <a name="requirement_python"></a> [python](#requirement\_python) | Yes | >= 3.8 | N/A |
 | <a name="requirement_cURL"></a> [cURL](#requirement\_cURL) | Yes | N/A | N/A |
-| <a name="requirement_userId"></a> [user](#requirement\_userId) | Yes | N/A | 12345 |
+| <a name="requirement_CUSTOMER_ID"></a> [customer](#requirement\_CUSTOMER_ID_) | Yes | N/A | 12345 |
 | <a name="requirement_accessToken"></a> [token](#requirement\_accessToken) | Yes | N/A | Ga21uay2vAGrzxfZHgJN4gNhuCBC9oKD |
 | <a name="requirement_stage"></a> [stage](#requirement\_stage) | No | N/A | stage-123abc |
 | <a name="requirement_dataset"></a> [dataset](#requirement\_dataset) | No | N/A | 41023123 |
@@ -184,10 +184,10 @@ directive in the OPAL such that only the data really needed is downloaded.
 * `start_time` defines the end of the query window and must be given according to the UTC timezone.
 
 
-* `url` defines the observe url to query the data from.
+* `url` defines the observe url to query the data from. It should not contain "https://".
 
 
-* `user` defines the user account to use for the export of the data.
+* `user` specifies the customer id, i.e., the first part of the url before `observeinc.com`; as this is part of the url already, specifying it is optional. 
 
 
 * `token` the access token provisioned for the user to export the data/
@@ -413,10 +413,10 @@ NaN values.
 * end_time: the end time of data to be queried from observe.
 
 
-* url: the observe url to query the data from.
+* url: the observe url to query the data from. It should not contain "https://".
 
 
-* user: the observe user for querying the data.
+* user: it specifies the customer id, i.e., the first part of the url before `observeinc.com`; as this is part of the url already, specifying it is optional. 
 
 
 * token: the observe access token to use for exporting the data.
