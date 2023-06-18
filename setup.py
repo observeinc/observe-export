@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 install_requires = [
     "click",
     "numpy",
-    "pandas",
+    "pandas < 2.0.0",
     "psutil",
     "dataclasses-json",
     "openpyxl",
