@@ -1,15 +1,15 @@
 from setuptools import setup, find_packages
 
 install_requires = [
-    "click",
-    "numpy",
-    "pandas < 2.0.0",
-    "psutil",
-    "dataclasses-json",
+    "click~=8.1.0",
+    "numpy~=1.24.0",
+    "pandas<2.0.0",
+    "psutil~=5.9.0",
+    "dataclasses-json~=0.5.0",
     "openpyxl",
-	"sphinx",
-	"sphinx-markdown-builder",
-	"sphinx-click",
+    "sphinx~=6.1.0",
+    "sphinx-markdown-builder~=0.5.0",
+    "sphinx-click~=4.4.0",
 ]
 
 setup(
