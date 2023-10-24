@@ -11,11 +11,8 @@ Your Observe User ID can be found by going to ```https://${CUSTOMER_ID}.observei
 #### Observe Access Token
 You will require an Observe Access Token which can be generated via ```curl```, additional details can be found in the [Observe Docs](https://docs.observeinc.com/en/latest/content/common-topics/FAQ.html#how-do-i-create-an-access-token-that-can-do-more-than-just-ingest-data)
 
-```curl
-curl -s \
-  https://${OBSERVE_CUSTOMER}.observeinc.com/v1/login -d \
-  '{"user_email":"you@your-company.com", "user_password":"so secret", \
-  "tokenName":"My token name"}'
+```bash
+curl -s https://${OBSERVE_CUSTOMER}.observeinc.com/v1/login -d '{"user_email":"you@your-company.com", "user_password":"so secret", "tokenName":"My token name"}'
 ```
 
 #### Observe Stage Identifier
