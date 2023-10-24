@@ -6,13 +6,13 @@ A python tool (and library) to easily export data as CSV or JSON from Observe wo
 >**_NOTE:_** This package has, so far, only been tested on Linux (Ubuntu 20.04) and Mac OS X 11.2. 
 
 #### Observe User Id
-Your Observe User ID can be found by going to ```https://${CUSTOMER_ID}.observeinc.com/settings/members```
+Your Observe User ID can be found by going to ```https://${CUSTOMER_ID}[.${CLUSTER}].observeinc.com/settings/members```
 
 #### Observe Access Token
 You will require an Observe Access Token which can be generated via ```curl```, additional details can be found in the [Observe Docs](https://docs.observeinc.com/en/latest/content/common-topics/FAQ.html#how-do-i-create-an-access-token-that-can-do-more-than-just-ingest-data)
 
 ```bash
-curl -s https://${OBSERVE_CUSTOMER}.observeinc.com/v1/login -d '{"user_email":"you@your-company.com", "user_password":"so secret", "tokenName":"My token name"}'
+curl -s https://${CUSTOMER_ID}[.${CLUSTER}].observeinc.com/v1/login -d '{"user_email":"you@your-company.com", "user_password":"so secret", "tokenName":"My token name"}'
 ```
 
 #### Observe Stage Identifier
